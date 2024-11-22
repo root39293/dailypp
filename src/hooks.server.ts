@@ -4,7 +4,6 @@ import type { Handle } from '@sveltejs/kit';
 import type { OAuthConfig } from '@auth/core/providers';
 import type { DefaultSession } from '@auth/core/types';
 import { osuApi } from '$lib/server/osu-api';
-import type { RequestEvent } from '@sveltejs/kit';
 
 declare module '@auth/core/types' {
     interface Session extends DefaultSession {
@@ -16,9 +15,18 @@ declare module '@auth/core/types' {
     }
 }
 
-interface OsuApiProfile {
+interface OAuthTokens {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+}
+
+interface OsuProfile {
     id: string | number;
     username: string;
+    statistics: {
+        pp: number;
+    };
 }
 
 const osuProvider: OAuthConfig<any> = {
@@ -30,66 +38,86 @@ const osuProvider: OAuthConfig<any> = {
     authorization: {
         url: 'https://osu.ppy.sh/oauth/authorize',
         params: {
-            scope: 'identify public'
+            scope: 'identify',
+            response_type: 'code'
         }
     },
-    token: 'https://osu.ppy.sh/oauth/token',
+    token: {
+        url: 'https://osu.ppy.sh/oauth/token',
+        params: { grant_type: 'authorization_code' }
+    },
     userinfo: {
         url: 'https://osu.ppy.sh/api/v2/me',
-        async request({ tokens }: { tokens: { access_token: string } }) {
+        async request({ tokens }: { tokens: OAuthTokens }) {
             const response = await fetch('https://osu.ppy.sh/api/v2/me', {
                 headers: {
                     Authorization: `Bearer ${tokens.access_token}`
                 }
             });
-            return await response.json();
+            if (!response.ok) {
+                throw new Error('Failed to fetch user');
+            }
+            return response.json();
         }
     },
-    profile(profile: OsuApiProfile) {
+    profile(profile: any) {
+        console.log('Profile function - Raw profile:', profile);
+        
         if (!profile?.id) {
             throw new Error('Invalid profile data');
         }
-        return {
+
+        const profileData = {
             id: profile.id.toString(),
             name: profile.username,
+            email: `${profile.id}@osu.ppy.sh`,
+            pp_raw: profile.statistics?.pp || 0
         };
+
+        console.log('Profile function - Returned data:', profileData);
+        return profileData;
     }
 };
 
-const auth = SvelteKitAuth({
+const handler = SvelteKitAuth({
     providers: [osuProvider],
     secret: AUTH_SECRET,
     trustHost: true,
+    debug: true,
     callbacks: {
-        async jwt({ token, profile }) {
-            if (profile && 'id' in profile) {
-                const userId = profile.id?.toString();
-                if (!userId) {
-                    console.error('No user ID in profile');
-                    return token;
-                }
-                
-                token.id = userId;
-                try {
-                    const userStats = await osuApi.getUserStats(userId);
-                    token.pp_raw = userStats.pp_raw;
-                } catch (error) {
-                    console.error('Failed to fetch user PP:', error);
-                }
+        async jwt({ token, profile, account }) {
+            console.log('JWT Callback - Token:', token);
+            console.log('JWT Callback - Profile:', profile);
+            console.log('JWT Callback - Account:', account);
+
+            if (profile) {
+                token.id = profile.id;
+                token.name = profile.name;
+                token.email = profile.email;
+                token.pp_raw = profile.pp_raw;
             }
             return token;
         },
         async session({ session, token }) {
-            if (session.user) {
-                session.user.id = token.id as string;
-                session.user.pp_raw = token.pp_raw as number;
+            console.log('Session Callback - Input Session:', session);
+            console.log('Session Callback - Token:', token);
+
+            if (token) {
+                session.user = {
+                    id: token.id as string,
+                    name: token.name as string,
+                    email: `${token.id}@osu.ppy.sh`,
+                    pp_raw: token.pp_raw as number,
+                    emailVerified: null
+                };
             }
+
+            console.log('Session Callback - Output Session:', session);
             return session;
         }
     }
 });
 
-export const handle: Handle = async ({ event, resolve }) => {
-    const authHandle = await auth.handle({ event, resolve });
-    return authHandle;
-};
+export const handle = (async (...args) => {
+    return handler.handle(...args);
+}) satisfies Handle;

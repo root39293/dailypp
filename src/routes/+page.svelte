@@ -1,5 +1,14 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+
+  onMount(() => {
+    console.log('Page Mount - Session Data:', $page.data.session);
+  });
+
+  $: {
+    console.log('Page Reactive - Session Data:', $page.data.session);
+  }
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center">
