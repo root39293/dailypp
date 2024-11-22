@@ -4,6 +4,8 @@ export interface User {
     username: string;
     pp_raw: number;
     last_login: Date;
+    created_at: Date;
+    updated_at: Date;
 }
 
 export interface Challenge {

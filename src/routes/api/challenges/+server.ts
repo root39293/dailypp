@@ -49,20 +49,29 @@ export const GET: RequestHandler = async ({ locals }) => {
         });
 
         if (!dailyChallenge) {
-            const userPP = session.user.pp_raw || 0;
+            const userStats = await osuApi.getUserStats(session.user.id);
+            const userPP = userStats.pp_raw;
             
             const challenges = await Promise.all(
                 (Object.keys(DIFFICULTY_FACTOR) as DifficultyType[]).map(async (difficulty) => {
                     const factor = DIFFICULTY_FACTOR[difficulty];
-                    const targetPP = userPP * (factor.MIN + Math.random() * (factor.MAX - factor.MIN));
+                    const difficultyFactor = factor.MIN + Math.random() * (factor.MAX - factor.MIN);
                     
-                    const beatmapId = "75"; // 임시로 하드코딩된 비트맵 ID
-                    
-                    return {
-                        beatmap_id: beatmapId,
-                        difficulty: difficulty,
-                        completed: false
-                    };
+                    try {
+                        const beatmap = await osuApi.findSuitableBeatmap(userPP, difficultyFactor);
+                        return {
+                            beatmap_id: beatmap.id.toString(),
+                            difficulty: difficulty,
+                            completed: false
+                        };
+                    } catch (error) {
+                        console.error(`Failed to find suitable beatmap for ${difficulty}:`, error);
+                        return {
+                            beatmap_id: "75",
+                            difficulty: difficulty,
+                            completed: false
+                        };
+                    }
                 })
             );
 

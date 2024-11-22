@@ -3,22 +3,10 @@
 declare global {
     namespace App {
         interface Locals {
-            getSession(): Promise<{
-                user: {
-                    id: string;
-                    name?: string | null;
-                    pp_raw?: number;
-                } | null;
-            } | null>;
+            getSession(): Promise<SessionData | null>;
         }
         interface PageData {
-            session: {
-                user: {
-                    id: string;
-                    name?: string | null;
-                    pp_raw?: number;
-                } | null;
-            } | null;
+            session: SessionData | null;
         }
         interface Platform {}
     }
@@ -28,6 +16,15 @@ declare global {
         VITE_OSU_CLIENT_SECRET: string;
         VITE_MONGODB_URI: string;
         VITE_AUTH_SECRET: string;
+    }
+
+    interface SessionData {
+        user: {
+            id: string;
+            name: string;
+            pp_raw?: number;
+        } | null;
+        expires: string;
     }
 }
 
