@@ -1,38 +1,81 @@
-# sv
+# DailyPP
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+일일 osu! 맵 추천 웹 서비스 (개발 진행중)
 
-## Creating a project
+![DailyPP Landing Page](https://github.com/root39293/dailypp/blob/main/assets/landing.png)
 
-If you're seeing this, you've probably already done this step. Congrats!
+## 주요 기능
 
-```bash
-# create a new project in the current directory
-npx sv create
+### 1. 맞춤형 비트맵 추천
+- 사용자 PP 기반 난이도 조정 (0.7 ~ 1.0 배율)
+- 난이도별 차등 추천 (Easy, Normal, Hard)
+- 비트맵 필터링 기준 (최소 플레이 수: 1,000회, 길이: 1분 ~ 5분, 최근 30일 이내 등록된 맵)
 
-# create a new project in my-app
-npx sv create my-app
-```
+### 2. 일일 도전과제
+- 난이도별 3개 비트맵 제공
+- 상세 정보 표시:
+  - 난이도 ★
+  - BPM
+  - 맵 길이
+  - 제작자 정보
 
-## Developing
+### 3. 프로필
+- osu! 프로필 연동
+- 유저 정보 표시
+- 도전과제 이력 확인
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## 기술 스택
 
-```bash
+### Frontend
+- SvelteKit
+- TailwindCSS
+- TypeScript
+
+### Backend
+- MongoDB
+- osu! OAuth
+
+## 개발 환경 설정
+
+1. 저장소 클론
+~~~bash
+git clone https://github.com/root39293/dailypp.git
+cd dailypp
+~~~
+
+2. 환경변수 설정
+~~~bash
+# .env 파일 생성 
+MONGODB_URI="mongodb_uri"
+OSU_CLIENT_ID="your_osu_client_id"
+OSU_CLIENT_SECRET="your_osu_client_secret"
+OSU_REDIRECT_URI="your_redirect_uri"
+~~~
+
+3. 의존성 설치 및 실행
+~~~bash
+npm install
 npm run dev
+~~~
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## API 엔드포인트
 
-## Building
+### 사용자
+- `GET /api/user`: 현재 로그인한 사용자 정보 조회
+- `GET /api/user/history`: 도전과제 이력 조회
 
-To create a production version of your app:
+## 프로젝트 구조
+~~~
+src/
+├── routes/
+│   ├── api/
+│   │   └── user/          # 유저 관련 API
+│   ├── challenges/        # 도전과제 페이지
+│   ├── profile/          # 프로필 페이지
+│   ├── +layout.server.ts # 서버 레이아웃
+│   └── +layout.svelte    # 클라이언트 레이아웃
+~~~
 
-```bash
-npm run build
-```
+## 라이선스
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+MIT License
