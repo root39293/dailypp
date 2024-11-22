@@ -35,14 +35,27 @@
     pp_raw?: number;
   };
 
+  interface DifficultyData {
+    total: number;
+    completed: number;
+  }
+
+  interface DifficultyStats {
+    [key: string]: DifficultyData;
+  }
+
   let stats: ChallengeStats | null = null;
   let history: ChallengeHistory[] = [];
   let loading = true;
   let error: string | null = null;
 
-  $: user = $page.data.session?.user as SessionUser | null;
-
   onMount(async () => {
+    if (!$page.data.user) {
+      error = 'Not logged in';
+      loading = false;
+      return;
+    }
+
     try {
       const [statsResponse, historyResponse] = await Promise.all([
         fetch('/api/user/stats'),
@@ -76,21 +89,21 @@
 </script>
 
 <div class="max-w-4xl mx-auto px-4 py-8">
-  {#if user}
+  {#if $page.data.user}
     <div class="bg-dark-100 rounded-lg p-6 shadow-lg border border-gray-700 mb-8">
       <div class="flex items-center space-x-4">
         <img
-          src={`https://a.ppy.sh/${user.id}`}
+          src={`https://a.ppy.sh/${$page.data.user.id}`}
           alt="Profile"
           class="w-20 h-20 rounded-full border-2 border-osu-pink"
         />
         <div>
           <h1 class="text-2xl font-bold text-white">
-            {user.name}
+            {$page.data.user.name}
           </h1>
-          {#if user.pp_raw !== undefined}
+          {#if $page.data.user.pp_raw !== undefined}
             <p class="text-gray-400 flex items-center">
-              <span class="font-semibold text-osu-pink">{user.pp_raw.toFixed(2)}</span>
+              <span class="font-semibold text-osu-pink">{$page.data.user.pp_raw.toFixed(2)}</span>
               <span class="ml-1">PP</span>
             </p>
           {/if}
@@ -112,8 +125,8 @@
         {#each Object.entries(stats.byDifficulty) as [difficulty, data]}
           <StatsCard
             title={`${difficulty} Maps`}
-            value={`${data.completed}/${data.total}`}
-            percentage={calculateCompletionRate(data.completed, data.total)}
+            value={`${(data as DifficultyData).completed}/${(data as DifficultyData).total}`}
+            percentage={calculateCompletionRate((data as DifficultyData).completed, (data as DifficultyData).total)}
             color={difficulty === 'EASY' ? 'bg-green-500' : 
                    difficulty === 'NORMAL' ? 'bg-yellow-500' : 
                    'bg-red-500'}

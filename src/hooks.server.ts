@@ -1,123 +1,119 @@
-import { SvelteKitAuth } from '@auth/sveltekit';
-import { OSU_CLIENT_ID, OSU_CLIENT_SECRET, AUTH_SECRET } from '$env/static/private';
+import { OSU_CLIENT_ID, OSU_CLIENT_SECRET } from '$env/static/private';
 import type { Handle } from '@sveltejs/kit';
-import type { OAuthConfig } from '@auth/core/providers';
-import type { DefaultSession } from '@auth/core/types';
-import { osuApi } from '$lib/server/osu-api';
+import jwt from 'jsonwebtoken';
 
-declare module '@auth/core/types' {
-    interface Session extends DefaultSession {
-        user?: {
-            id: string;
-            name: string;
-            pp_raw?: number;
-        } & DefaultSession['user'];
-    }
+interface OsuUser {
+    id: string;
+    name: string;
+    pp_raw: number;
 }
 
-interface OAuthTokens {
-    access_token: string;
-    token_type: string;
-    expires_in: number;
-}
-
-interface OsuProfile {
-    id: string | number;
-    username: string;
-    statistics: {
-        pp: number;
-    };
-}
-
-const osuProvider: OAuthConfig<any> = {
-    id: 'osu',
-    name: 'osu!',
-    type: 'oauth' as const,
-    clientId: OSU_CLIENT_ID,
-    clientSecret: OSU_CLIENT_SECRET,
-    authorization: {
-        url: 'https://osu.ppy.sh/oauth/authorize',
-        params: {
-            scope: 'identify',
-            response_type: 'code'
+export const handle: Handle = async ({ event, resolve }) => {
+    const authHeader = event.request.headers.get('authorization');
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.slice(7);
+        try {
+            const user = jwt.verify(token, OSU_CLIENT_SECRET) as OsuUser;
+            event.locals.user = user;
+        } catch (error) {
+            console.error('Invalid token:', error);
         }
-    },
-    token: {
-        url: 'https://osu.ppy.sh/oauth/token',
-        params: { grant_type: 'authorization_code' }
-    },
-    userinfo: {
-        url: 'https://osu.ppy.sh/api/v2/me',
-        async request({ tokens }: { tokens: OAuthTokens }) {
-            const response = await fetch('https://osu.ppy.sh/api/v2/me', {
-                headers: {
-                    Authorization: `Bearer ${tokens.access_token}`
+    }
+
+    // OAuth 콜백 처리
+    if (event.url.pathname === '/auth/callback') {
+        const code = event.url.searchParams.get('code');
+        if (code) {
+            try {
+                // OAuth 토큰 얻기
+                const tokenResponse = await fetch('https://osu.ppy.sh/oauth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        client_id: OSU_CLIENT_ID,
+                        client_secret: OSU_CLIENT_SECRET,
+                        code,
+                        grant_type: 'authorization_code',
+                        redirect_uri: 'http://localhost:5173/auth/callback'
+                    })
+                });
+
+                if (!tokenResponse.ok) {
+                    console.error('Token response error:', await tokenResponse.text());
+                    throw new Error('Failed to get access token');
                 }
-            });
-            if (!response.ok) {
-                throw new Error('Failed to fetch user');
-            }
-            return response.json();
-        }
-    },
-    profile(profile: any) {
-        console.log('Profile function - Raw profile:', profile);
-        
-        if (!profile?.id) {
-            throw new Error('Invalid profile data');
-        }
 
-        const profileData = {
-            id: profile.id.toString(),
-            name: profile.username,
-            email: `${profile.id}@osu.ppy.sh`,
-            pp_raw: profile.statistics?.pp || 0
-        };
+                const { access_token } = await tokenResponse.json();
 
-        console.log('Profile function - Returned data:', profileData);
-        return profileData;
-    }
-};
+                // 사용자 정보 얻기
+                const userResponse = await fetch('https://osu.ppy.sh/api/v2/me', {
+                    headers: {
+                        Authorization: `Bearer ${access_token}`
+                    }
+                });
 
-const handler = SvelteKitAuth({
-    providers: [osuProvider],
-    secret: AUTH_SECRET,
-    trustHost: true,
-    debug: true,
-    callbacks: {
-        async jwt({ token, profile, account }) {
-            console.log('JWT Callback - Token:', token);
-            console.log('JWT Callback - Profile:', profile);
-            console.log('JWT Callback - Account:', account);
+                if (!userResponse.ok) {
+                    console.error('User response error:', await userResponse.text());
+                    throw new Error('Failed to get user data');
+                }
 
-            if (profile) {
-                token.id = profile.id;
-                token.name = profile.name;
-                token.email = profile.email;
-                token.pp_raw = profile.pp_raw;
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            console.log('Session Callback - Input Session:', session);
-            console.log('Session Callback - Token:', token);
-
-            if (token) {
-                session.user = {
-                    id: token.id as string,
-                    name: token.name as string,
-                    email: `${token.id}@osu.ppy.sh`,
-                    pp_raw: token.pp_raw as number,
-                    emailVerified: null
+                const userData = await userResponse.json();
+                const user: OsuUser = {
+                    id: userData.id.toString(),
+                    name: userData.username,
+                    pp_raw: userData.statistics?.pp || 0
                 };
-            }
 
-            console.log('Session Callback - Output Session:', session);
-            return session;
+                // JWT 생성
+                const token = jwt.sign(user, OSU_CLIENT_SECRET, { expiresIn: '7d' });
+
+                // 쿠키에 JWT 저장
+                event.cookies.set('jwt', token, {
+                    path: '/',
+                    httpOnly: true,
+                    sameSite: 'lax',
+                    secure: false,
+                    maxAge: 60 * 60 * 24 * 7 // 7일
+                });
+
+                console.log('Setting cookie with token:', token);
+                
+                // 리다이렉트 전에 쿠키가 제대로 설정되었는지 확인
+                const setCookie = event.cookies.get('jwt');
+                console.log('Verified cookie after setting:', setCookie);
+
+                // 리다이렉트 응답 수정
+                const headers = new Headers({
+                    'Location': '/',
+                    'Cache-Control': 'no-cache'
+                });
+
+                // 쿠키 설정
+                const cookieValue = `jwt=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`;
+                headers.append('Set-Cookie', cookieValue);
+
+                // 리다이렉트 응답
+                const response = new Response(null, {
+                    status: 302,
+                    headers
+                });
+
+                console.log('Redirect response headers:', Object.fromEntries(headers.entries()));
+                return response;
+            } catch (error) {
+                console.error('Auth error:', error);
+                return new Response('Authentication failed', { 
+                    status: 400,
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    }
+                });
+            }
         }
     }
-});
 
-export const handle = (async (...args) => {
-    return handler.handle(...args);
-}) satisfies Handle;
+    return resolve(event);
+};

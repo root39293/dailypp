@@ -13,12 +13,11 @@ interface AggregationResult {
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
-    try {
-        const session = await locals.getSession();
-        if (!session?.user) {
-            throw new APIError('Unauthorized', 401);
-        }
+    if (!locals.user) {
+        return new Response('Unauthorized', { status: 401 });
+    }
 
+    try {
         const db = await connect();
         const today = new Date();
         const thirtyDaysAgo = subDays(today, 30);
@@ -27,7 +26,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         const stats = await db.challenges.aggregate<AggregationResult>([
             {
                 $match: {
-                    user_id: session.user.id,
+                    user_id: locals.user.id,
                     date: { $gte: thirtyDaysAgo }
                 }
             },

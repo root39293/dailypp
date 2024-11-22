@@ -28,12 +28,11 @@ const completeChallengeDtoSchema = z.object({
 });
 
 export const GET: RequestHandler = async ({ locals }) => {
-    try {
-        const session = await locals.getSession();
-        if (!session?.user) {
-            throw new APIError('Unauthorized', 401);
-        }
+    if (!locals.user) {
+        return new Response('Unauthorized', { status: 401 });
+    }
 
+    try {
         const db = await connect();
         
         const today = new Date();
@@ -41,7 +40,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         const todayEnd = endOfDay(today);
 
         let dailyChallenge = await db.challenges.findOne({
-            user_id: session.user.id,
+            user_id: locals.user.id,
             date: {
                 $gte: todayStart,
                 $lte: todayEnd
@@ -49,7 +48,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         });
 
         if (!dailyChallenge) {
-            const userStats = await osuApi.getUserStats(session.user.id);
+            const userStats = await osuApi.getUserStats(locals.user.id);
             const userPP = userStats.pp_raw;
             
             const challenges = await Promise.all(
@@ -77,7 +76,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
             const result = await db.challenges.insertOne({
                 date: today,
-                user_id: session.user.id,
+                user_id: locals.user.id,
                 challenges,
                 created_at: new Date(),
                 updated_at: new Date()
@@ -106,19 +105,18 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    try {
-        const session = await locals.getSession();
-        if (!session?.user) {
-            throw new APIError('Unauthorized', 401);
-        }
+    if (!locals.user) {
+        return new Response('Unauthorized', { status: 401 });
+    }
 
+    try {
         const body = await request.json();
         const { beatmap_id } = completeChallengeDtoSchema.parse(body);
 
         const db = await connect();
         const result = await db.challenges.updateOne(
             {
-                user_id: session.user.id,
+                user_id: locals.user.id,
                 date: {
                     $gte: startOfDay(new Date()),
                     $lte: endOfDay(new Date())
@@ -135,7 +133,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         );
 
         if (result.matchedCount === 0) {
-            throw new APIError('Challenge not found', 404, 'CHALLENGE_NOT_FOUND');
+            throw new APIError('Challenge not found', 404);
         }
 
         return new Response(null, { status: 200 });

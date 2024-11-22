@@ -1,37 +1,30 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+  import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+  import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 
-  interface Beatmap {
-    id: string;
-    title: string;
-    version: string;
-    difficulty_rating: number;
-    bpm: number;
-    total_length: number;
-    creator: string;
-  }
-
-  interface Challenge {
-    beatmap_id: string;
-    difficulty: 'EASY' | 'NORMAL' | 'HARD';
-    completed: boolean;
-    completed_at?: Date;
-    beatmap?: Beatmap;
-  }
-
-  let challenges: Challenge[] = [];
+  let challenges: any[] = [];
   let loading = true;
   let error: string | null = null;
   let completing: string | null = null;
 
   async function fetchChallenges() {
+    if (!$page.data.user) {
+      error = 'Not logged in';
+      loading = false;
+      return;
+    }
+
     try {
       const response = await fetch('/api/challenges');
-      if (!response.ok) throw new Error('Failed to fetch challenges');
+      if (!response.ok) {
+        throw new Error('Failed to fetch challenges');
+      }
       const data = await response.json();
       challenges = data.challenges;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'An error occurred';
+      error = err instanceof Error ? err.message : 'Failed to fetch challenges';
     } finally {
       loading = false;
     }
