@@ -60,9 +60,13 @@ npm run dev
 
 ## API 엔드포인트
 
+### 인증
+- `POST /auth/signin`: osu! OAuth 로그인
+- `POST /auth/signout`: 로그아웃
+
 ### 사용자
 - `GET /api/user`: 현재 로그인한 사용자 정보 조회
-- `GET /api/user/history`: 도전과제 이력 조회
+- `GET /api/user/stats`: 사용자의 30일간 도전과제 통계 조회
 
 ## 프로젝트 구조
 ~~~
