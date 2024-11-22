@@ -2,7 +2,7 @@
 
 일일 osu! 맵 추천 웹 서비스 (개발 진행중)
 
-![DailyPP Landing Page](https://github.com/root39293/dailypp/blob/main/assets/landing.png)
+![landing](https://github.com/user-attachments/assets/f8fb0208-c39b-4d30-96e6-1c2f15b6118f)
 
 ## 주요 기능
 
@@ -67,13 +67,17 @@ npm run dev
 ## 프로젝트 구조
 ~~~
 src/
+├── lib/
+│   ├── components/     # 공통 컴포넌트
+│   ├── server/        # 서버 관련 유틸리티
+│   ├── schemas.ts     # 데이터 스키마
+│   └── types.ts       # 타입 정의
 ├── routes/
-│   ├── api/
-│   │   └── user/          # 유저 관련 API
-│   ├── challenges/        # 도전과제 페이지
-│   ├── profile/          # 프로필 페이지
-│   ├── +layout.server.ts # 서버 레이아웃
-│   └── +layout.svelte    # 클라이언트 레이아웃
+│   ├── api/          # API 엔드포인트
+│   ├── auth/         # 인증 관련
+│   ├── challenges/   # 도전과제 페이지
+│   └── profile/      # 프로필 페이지
+└── app.css          # 전역 스타일
 ~~~
 
 ## 라이선스
