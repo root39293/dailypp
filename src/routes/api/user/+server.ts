@@ -13,7 +13,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     const today = new Date();
     const thirtyDaysAgo = subDays(today, 30);
 
-    // 전체 챌린지 통계
     const stats = await db.challenges.aggregate([
         {
             $match: {

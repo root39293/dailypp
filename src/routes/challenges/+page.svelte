@@ -31,7 +31,7 @@
   }
 
   async function completeChallenge(beatmapId: string) {
-    if (completing) return; // 이미 처리 중인 경우 중복 방지
+    if (completing) return; 
     
     completing = beatmapId;
     try {
@@ -47,7 +47,6 @@
         throw new Error('Failed to complete challenge');
       }
 
-      // 성공시 챌린지 목록 새로고침
       await fetchChallenges();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to complete challenge';
@@ -62,7 +61,6 @@
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
 
-  // 페이지 로드시 챌린지 데이터 가져오기
   fetchChallenges();
 </script>
 

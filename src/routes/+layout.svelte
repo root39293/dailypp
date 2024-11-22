@@ -36,13 +36,13 @@
             GitHub
           </a>
           <a 
-            href="https://qr.kakaopay.com/your-code" 
+            href="https://buymeacoffee.com/faith6" 
             target="_blank" 
             rel="noopener noreferrer"
             class="text-gray-400 hover:text-osu-pink transition-colors text-sm flex items-center gap-1"
           >
-            <span>후원하기</span>
-            <span class="text-osu-pink">♥</span>
+            <span>Donate</span>
+            <span class="text-osu-pink">☕</span>
           </a>
         </div>
       </div>
