@@ -12,7 +12,7 @@
   }
 </script>
 
-<div class="min-h-screen bg-dark-100 p-6">
+<div class="min-h-screen bg-dark-100 p-6 pt-24">
   <div class="max-w-7xl mx-auto space-y-6">
     <!-- 헤더 섹션 -->
     <div class="flex flex-col md:flex-row gap-6">
