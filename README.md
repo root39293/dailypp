@@ -44,7 +44,7 @@
 
 1. 저장소 클론
 ~~~bash
-git clone https://github.com/n1et/dailypp.git
+git clone https://github.com/root39293/dailypp.git
 cd dailypp
 ~~~
 
