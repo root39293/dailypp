@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
+  import Footer from './Footer.svelte';
   export let isLoaded: boolean;
 
   const features = [
@@ -44,15 +45,16 @@
   }
 </script>
 
-<div class="relative min-h-screen bg-dark-300">
+<div class="relative min-h-screen bg-dark-300 flex flex-col">
   <!-- 배경 효과 -->
   <div class="absolute inset-0 overflow-hidden opacity-20">
     <div class="absolute w-[500px] h-[500px] bg-osu-pink rounded-full blur-[128px] animate-float top-0 -left-64"></div>
     <div class="absolute w-[500px] h-[500px] bg-osu-purple rounded-full blur-[128px] animate-float-delayed -bottom-64 right-0"></div>
   </div>
 
-  <div class="relative min-h-screen flex items-center px-8">
-    <div class="max-w-[1440px] mx-auto w-full grid grid-cols-1 lg:grid-cols-[1.2fr,1.8fr] gap-12 items-center">
+  <!-- 메인 콘텐츠 섹션 -->
+  <div class="relative flex-grow px-8 py-20">
+    <div class="max-w-[1440px] mx-auto w-full grid grid-cols-1 lg:grid-cols-[1.2fr,1.8fr] gap-12 items-center min-h-[800px]">
       <!-- 왼쪽 콘텐츠 섹션 -->
       <div class="space-y-16 lg:pl-8">
         {#if isLoaded}
@@ -219,6 +221,11 @@
         </div>
       {/if}
     </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="relative z-10">
+    <Footer />
   </div>
 </div>
 
