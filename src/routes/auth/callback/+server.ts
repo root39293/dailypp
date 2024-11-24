@@ -3,9 +3,12 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { OSU_CLIENT_ID, OSU_CLIENT_SECRET } from '$env/static/private';
 import jwt from 'jsonwebtoken';
 import { connect } from '$lib/server/db';
+import { getRedirectUri } from '$lib/server/config';
 
 export const GET = async ({ url, cookies }: RequestEvent) => {
     const code = url.searchParams.get('code');
+    const redirectUri = getRedirectUri();
+    
     console.log('Auth Callback - Received code:', code);
     
     if (!code) {
@@ -16,7 +19,7 @@ export const GET = async ({ url, cookies }: RequestEvent) => {
     try {
         console.log('Requesting token with:', {
             client_id: OSU_CLIENT_ID,
-            redirect_uri: 'http://localhost:5173/auth/callback'
+            redirect_uri: redirectUri
         });
 
         // OAuth 토큰 얻기
@@ -30,7 +33,7 @@ export const GET = async ({ url, cookies }: RequestEvent) => {
                 client_secret: OSU_CLIENT_SECRET,
                 code,
                 grant_type: 'authorization_code',
-                redirect_uri: 'http://localhost:5173/auth/callback'
+                redirect_uri: redirectUri
             })
         });
 
