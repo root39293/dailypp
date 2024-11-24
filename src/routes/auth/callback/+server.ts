@@ -27,10 +27,9 @@ export const GET = async ({ url, cookies }: RequestEvent) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(`${OSU_CLIENT_ID}:${OSU_CLIENT_SECRET}`).toString('base64')
             },
             body: JSON.stringify({
-                client_id: OSU_CLIENT_ID,
-                client_secret: OSU_CLIENT_SECRET,
                 code,
                 grant_type: 'authorization_code',
                 redirect_uri: redirectUri
