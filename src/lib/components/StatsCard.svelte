@@ -5,24 +5,30 @@
   export let color: string = 'bg-osu-pink';
 
   $: formattedPercentage = percentage.toFixed(1);
+  $: bgColor = color.replace('bg-', '');
 </script>
 
-<div class="bg-dark-100 rounded-lg p-6 shadow-lg border border-gray-700">
-  <h3 class="text-lg font-semibold text-white mb-2">{title}</h3>
-  <div class="text-2xl font-bold text-white mb-4">{value}</div>
-  <div class="relative pt-1">
-    <div class="flex mb-2 items-center justify-between">
-      <div class="text-right">
-        <span class="text-xs font-semibold inline-block text-white">
-          {formattedPercentage}%
-        </span>
+<div class="bg-dark-100/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 hover:border-gray-700/50 transition-all duration-300">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl {color.replace('500', '500/20')} flex items-center justify-center">
+        <i class="fas fa-star text-lg {color.replace('bg-', 'text-')}"></i>
       </div>
+      <span class="text-lg font-bold {color.replace('bg-', 'text-')}">{title}</span>
     </div>
-    <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
+    <div class="text-2xl font-bold text-white">{value}</div>
+  </div>
+
+  <div class="space-y-2">
+    <div class="flex justify-between items-center">
+      <span class="text-sm text-gray-400">Completion Rate</span>
+      <span class="text-sm font-medium {color.replace('bg-', 'text-')}">{formattedPercentage}%</span>
+    </div>
+    <div class="h-2 bg-dark-200 rounded-full overflow-hidden">
       <!-- svelte-ignore element_invalid_self_closing_tag -->
       <div
+        class="h-full transition-all duration-500 {color}"
         style="width: {percentage}%"
-        class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {color}"
       />
     </div>
   </div>

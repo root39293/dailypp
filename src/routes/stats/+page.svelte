@@ -3,7 +3,10 @@
   import { onMount } from 'svelte';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+  import PPChart from '$lib/components/PPChart.svelte';
   import StatsCard from '$lib/components/StatsCard.svelte';
+
+  type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
 
   interface ChallengeStats {
     total: number;
@@ -19,7 +22,7 @@
     date: string;
     challenges: {
       beatmap_id: string;
-      difficulty: 'EASY' | 'NORMAL' | 'HARD';
+      difficulty: Difficulty;
       completed: boolean;
       completed_at?: string;
       beatmap?: {
@@ -29,15 +32,13 @@
     }[];
   }
 
-  interface DifficultyData {
-    total: number;
-    completed: number;
-  }
-
   let stats: ChallengeStats | null = null;
   let history: ChallengeHistory[] = [];
   let loading = true;
   let error: string | null = null;
+  let ppHistory: { pp: number; recorded_at: string; }[] = [];
+
+  const DIFFICULTIES: Difficulty[] = ['EASY', 'NORMAL', 'HARD'];
 
   onMount(async () => {
     if (!$page.data.user) {
@@ -47,17 +48,19 @@
     }
 
     try {
-      const [statsResponse, historyResponse] = await Promise.all([
+      const [statsResponse, historyResponse, ppHistoryResponse] = await Promise.all([
         fetch('/api/user/stats'),
-        fetch('/api/user/history')
+        fetch('/api/user/history'),
+        fetch('/api/user/pp-history')
       ]);
 
-      if (!statsResponse.ok || !historyResponse.ok) {
+      if (!statsResponse.ok || !historyResponse.ok || !ppHistoryResponse.ok) {
         throw new Error('Failed to fetch user data');
       }
 
       stats = await statsResponse.json();
       history = await historyResponse.json();
+      ppHistory = await ppHistoryResponse.json();
     } catch (err) {
       error = err instanceof Error ? err.message : 'An error occurred';
     } finally {
@@ -73,10 +76,6 @@
     });
   }
 
-  function calculateCompletionRate(completed: number, total: number): number {
-    return total === 0 ? 0 : (completed / total) * 100;
-  }
-
   function handleImageError(event: Event) {
     const target = event.target as HTMLImageElement;
     target.src = 'https://osu.ppy.sh/images/layout/avatar-guest.png';
@@ -84,87 +83,81 @@
 </script>
 
 <div class="min-h-screen bg-dark-300">
+  <div class="absolute inset-0 overflow-hidden opacity-20">
+    <div class="absolute w-[500px] h-[500px] bg-osu-pink rounded-full blur-[128px] animate-float top-0 -left-64"></div>
+    <div class="absolute w-[500px] h-[500px] bg-osu-purple rounded-full blur-[128px] animate-float-delayed -bottom-64 right-0"></div>
+  </div>
+
   {#if $page.data.user}
-    <div class="bg-gradient-to-b from-dark-100 to-dark-200 py-12">
-      <div class="max-w-6xl mx-auto px-4">
-        <div class="flex flex-col md:flex-row items-center md:items-start gap-8">
-          <div class="relative group">
-            <div class="absolute -inset-0.5 bg-gradient-to-r from-osu-pink to-osu-purple rounded-full blur opacity-50 group-hover:opacity-75 transition duration-300"></div>
-            <img
-              src={`https://a.ppy.sh/${$page.data.user.id}`}
-              alt="Profile"
-              class="relative w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-dark-100"
-              on:error={handleImageError}
-            />
-          </div>
+    <div class="bg-gradient-to-br from-osu-pink/10 via-dark-200 to-dark-100 border-b border-gray-800/50">
+      <div class="max-w-7xl mx-auto px-6 py-16">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-8">
           <div class="text-center md:text-left">
-            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
-              {$page.data.user.name}
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">
+              Stats & <span class="text-osu-pink">Progress</span>
             </h1>
-            <div class="flex items-center justify-center md:justify-start gap-4 mb-4">
-              <div class="bg-dark-100 rounded-lg px-4 py-2">
-                <span class="text-gray-400 text-sm">Performance</span>
-                <p class="text-xl font-bold text-osu-pink">{$page.data.user.pp_raw.toFixed(0)}pp</p>
+            <p class="text-xl text-gray-400 max-w-2xl">
+              일일 도전과제 달성률과 PP 성장을 한눈에 확인하세요.
+              매일매일의 작은 성장이 큰 발전으로 이어집니다.
+            </p>
+          </div>
+          <div class="bg-dark-300/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50">
+            <div class="text-sm text-gray-400 mb-2">현재 퍼포먼스</div>
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-osu-pink/20 flex items-center justify-center">
+                <i class="fas fa-chart-line text-2xl text-osu-pink"></i>
               </div>
-              {#if stats}
-                <div class="bg-dark-100 rounded-lg px-4 py-2">
-                  <span class="text-gray-400 text-sm">Completion Rate</span>
-                  <p class="text-xl font-bold text-green-400">{((stats.completed / stats.total) * 100).toFixed(1)}%</p>
+              <div>
+                <div class="text-3xl font-bold text-white">
+                  {$page.data.user.pp_raw.toFixed(0)}<span class="text-osu-pink">pp</span>
                 </div>
-              {/if}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="relative max-w-6xl mx-auto px-4 py-8 space-y-8">
       {#if loading}
         <LoadingSpinner />
       {:else if error}
         <ErrorAlert message={error} />
       {:else if stats}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {#each Object.entries(stats.byDifficulty) as [difficulty, data]}
-            <div class="bg-dark-100 rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all">
-              <div class="flex items-center justify-between mb-4">
-                <span class="text-lg font-semibold
-                  {difficulty === 'EASY' ? 'text-green-400' : 
-                   difficulty === 'NORMAL' ? 'text-yellow-400' : 
-                   'text-red-400'}">
-                  {difficulty}
-                </span>
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center
-                  {difficulty === 'EASY' ? 'bg-green-500/20' : 
-                   difficulty === 'NORMAL' ? 'bg-yellow-500/20' : 
-                   'bg-red-500/20'}">
-                  <i class="fas fa-star text-sm
-                    {difficulty === 'EASY' ? 'text-green-400' : 
-                     difficulty === 'NORMAL' ? 'text-yellow-400' : 
-                     'text-red-400'}"></i>
-                </div>
+        {#if ppHistory.length > 0}
+          <div class="bg-dark-100/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50">
+            <div class="flex items-center justify-between mb-6">
+              <div class="space-y-1">
+                <h2 class="text-xl font-bold text-white">PP Progress</h2>
+                <p class="text-sm text-gray-400">Your performance points growth over time</p>
               </div>
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm text-gray-400">
-                  <span>Completed</span>
-                  <span>{(data as DifficultyData).completed}/{(data as DifficultyData).total}</span>
-                </div>
-                <div class="h-2 bg-dark-200 rounded-full overflow-hidden">
-                  <div class="h-full transition-all duration-500
-                    {difficulty === 'EASY' ? 'bg-green-500' : 
-                     difficulty === 'NORMAL' ? 'bg-yellow-500' : 
-                     'bg-red-500'}"
-                    style="width: {calculateCompletionRate((data as DifficultyData).completed, (data as DifficultyData).total)}%">
-                  </div>
-                </div>
+              <div class="px-3 py-1 rounded-full bg-dark-200 text-sm text-gray-400">
+                Last 30 days
               </div>
             </div>
+            <PPChart data={ppHistory} />
+          </div>
+        {/if}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {#each DIFFICULTIES as difficulty}
+            <StatsCard
+              title={difficulty}
+              value={`${stats.byDifficulty[difficulty].completed}/${stats.byDifficulty[difficulty].total}`}
+              percentage={(stats.byDifficulty[difficulty].completed / stats.byDifficulty[difficulty].total) * 100}
+              color={difficulty === 'EASY' ? 'bg-green-500' : 
+                     difficulty === 'NORMAL' ? 'bg-yellow-500' : 
+                     'bg-red-500'}
+            />
           {/each}
         </div>
 
-        <div class="bg-dark-100 rounded-2xl border border-gray-700/50">
-          <div class="p-6 border-b border-gray-700/50">
-            <h2 class="text-xl font-bold text-white">Challenge History</h2>
+        <div class="bg-dark-100/50 backdrop-blur-sm rounded-2xl border border-gray-800/50">
+          <div class="p-6 border-b border-gray-800/50">
+            <div class="space-y-1">
+              <h2 class="text-xl font-bold text-white">Challenge History</h2>
+              <p class="text-sm text-gray-400">Your recent challenge completions</p>
+            </div>
           </div>
           <div class="divide-y divide-gray-700/50">
             {#each history as day}
@@ -228,7 +221,7 @@
           <i class="fas fa-user text-3xl text-gray-600"></i>
         </div>
         <h2 class="text-2xl font-bold text-white mb-4">Not Signed In</h2>
-        <p class="text-gray-400 mb-8">Please sign in to view your profile</p>
+        <p class="text-gray-400 mb-8">Please sign in to view your stats</p>
         <a
           href="/"
           class="inline-flex items-center px-6 py-3 rounded-xl bg-osu-pink text-white font-medium hover:bg-opacity-90 transition-all"

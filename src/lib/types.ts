@@ -9,10 +9,12 @@ export interface User {
 }
 
 export interface Challenge {
-    _id: string;
+    _id?: string;
     date: Date;
     user_id: string;
     challenges: ChallengeMap[];
+    created_at: Date;
+    updated_at: Date;
 }
 
 export interface ChallengeMap {
@@ -20,6 +22,7 @@ export interface ChallengeMap {
     difficulty: 'EASY' | 'NORMAL' | 'HARD';
     completed: boolean;
     completed_at?: Date;
+    score?: Score;
 }
 
 export const DIFFICULTY_FACTOR = {
@@ -58,4 +61,19 @@ export interface Beatmap {
     creator: string;
     cover_url?: string;
     preview_url?: string;
+}
+
+export interface PPHistory {
+    user_id: string;
+    pp: number;
+    recorded_at: Date;
+}
+
+export interface Score {
+    score: number;
+    accuracy: number;
+    max_combo: number;
+    rank: string;
+    created_at: string;
+    pp: number;
 }

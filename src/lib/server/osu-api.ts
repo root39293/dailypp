@@ -246,5 +246,45 @@ export const osuApi = {
             console.error('Error in findSuitableBeatmap:', error);
             throw error;
         }
+    },
+
+    async getUserRecentScore(userId: string, beatmapId: string) {
+        const token = await getToken();
+        
+        // 최근 24시간 이내의 플레이 기록 조회
+        const response = await fetch(
+            `https://osu.ppy.sh/api/v2/users/${userId}/scores/recent?include_fails=0&limit=50`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch recent scores');
+        }
+
+        const scores = await response.json();
+        
+        // 해당 비트맵의 가장 최근 성공 기록 찾기
+        const recentScore = scores.find((score: any) => 
+            score.beatmap.id === beatmapId && 
+            !score.fail && 
+            new Date(score.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+        );
+
+        if (!recentScore) {
+            return null;
+        }
+
+        return {
+            score: recentScore.score,
+            accuracy: recentScore.accuracy,
+            max_combo: recentScore.max_combo,
+            rank: recentScore.rank,
+            created_at: recentScore.created_at,
+            pp: recentScore.pp
+        };
     }
 };

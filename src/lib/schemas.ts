@@ -9,11 +9,21 @@ export const userSchema = z.object({
     updated_at: z.date()
 });
 
+export const scoreSchema = z.object({
+    score: z.number(),
+    accuracy: z.number(),
+    max_combo: z.number(),
+    rank: z.string(),
+    created_at: z.string(),
+    pp: z.number()
+});
+
 export const challengeMapSchema = z.object({
     beatmap_id: z.string(),
     difficulty: z.enum(['EASY', 'NORMAL', 'HARD']),
     completed: z.boolean(),
-    completed_at: z.date().optional()
+    completed_at: z.date().optional(),
+    score: scoreSchema.optional()
 });
 
 export const challengeSchema = z.object({

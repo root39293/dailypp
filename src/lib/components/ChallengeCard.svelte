@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ErrorAlert from './ErrorAlert.svelte';
+  
   export let challenge: {
     beatmap: {
       title: string;
@@ -13,9 +15,18 @@
     beatmap_id: string;
     completed: boolean;
     completed_at?: string;
+    score?: {
+      score: number;
+      accuracy: number;
+      max_combo: number;
+      rank: string;
+      created_at: string;
+      pp: number;
+    };
   };
   export let onComplete: (beatmapId: string) => Promise<void>;
   export let completing: string | null;
+  let errorMessage: string | null = null;
 
   function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -26,6 +37,37 @@
   function handleImageError(event: Event) {
     const img = event.target as HTMLImageElement;
     img.src = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg@2x.jpg';
+  }
+
+  async function handleComplete() {
+    try {
+      const response = await fetch('/api/challenges/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          beatmap_id: challenge.beatmap_id
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || '도전과제 완료에 실패했습니다');
+      }
+
+      const result = await response.json();
+      
+      if (result.verified) {
+        challenge.completed = true;
+        challenge.completed_at = result.completed_at;
+        challenge.score = result.score;
+      } else {
+        throw new Error('최근 24시간 이내의 클리어 기록을 찾을 수 없습니다');
+      }
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다';
+    }
   }
 </script>
 
@@ -96,50 +138,92 @@
       </div>
     </div>
 
-    <!-- 액션 버튼 -->
-    <div class="flex items-center justify-between gap-3">
-      <a 
-        href={`https://osu.ppy.sh/beatmaps/${challenge.beatmap_id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="px-4 py-1.5 rounded-lg bg-dark-400 text-white font-medium text-sm
-               hover:bg-dark-500 flex items-center space-x-2"
-      >
-        <span>View Map</span>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-        </svg>
-      </a>
-
-      {#if challenge.completed}
-        <div class="flex items-center space-x-2 bg-green-500/20 text-green-400 px-3 py-1.5 rounded-lg text-sm flex-grow justify-center">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-          </svg>
-          <span>Completed</span>
-          {#if challenge.completed_at}
-            <span class="text-xs text-green-300/70">
-              {new Date(challenge.completed_at).toLocaleTimeString()}
-            </span>
-          {/if}
-        </div>
-      {:else}
-        <button 
-          class="flex-grow relative overflow-hidden px-4 py-1.5 rounded-lg bg-osu-pink text-white font-medium text-sm
-                 hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          on:click={() => onComplete(challenge.beatmap_id)}
-          disabled={completing === challenge.beatmap_id}
+    <!-- 액션 버튼과 에러 메시지를 포함하는 컨테이너 -->
+    <div class="space-y-3">
+      <!-- 액션 버튼 -->
+      <div class="flex items-center justify-between gap-3">
+        <a 
+          href={`https://osu.ppy.sh/beatmaps/${challenge.beatmap_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="px-4 py-1.5 rounded-lg bg-dark-400 text-white font-medium text-sm
+                 hover:bg-dark-500 flex items-center space-x-2"
         >
-          {#if completing === challenge.beatmap_id}
-            <span class="flex items-center justify-center space-x-2">
-              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              <span>Processing...</span>
-            </span>
-          {:else}
-            Complete
-          {/if}
-        </button>
+          <span>View Map</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+
+        {#if challenge.completed}
+          <div class="flex items-center space-x-2 bg-green-500/20 text-green-400 px-3 py-1.5 rounded-lg text-sm flex-grow justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span>Completed</span>
+            {#if challenge.completed_at}
+              <span class="text-xs text-green-300/70">
+                {new Date(challenge.completed_at).toLocaleTimeString()}
+              </span>
+            {/if}
+          </div>
+        {:else}
+          <button 
+            class="flex-grow relative overflow-hidden px-4 py-1.5 rounded-lg bg-osu-pink text-white font-medium text-sm
+                   hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            on:click={async () => {
+              try {
+                await handleComplete();
+                if (!errorMessage) {
+                  await onComplete(challenge.beatmap_id);
+                }
+              } catch (err) {
+                console.error('Failed to complete challenge:', err);
+              }
+            }}
+            disabled={completing === challenge.beatmap_id}
+          >
+            {#if completing === challenge.beatmap_id}
+              <span class="flex items-center justify-center space-x-2">
+                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>Processing...</span>
+              </span>
+            {:else}
+              Complete
+            {/if}
+          </button>
+        {/if}
+      </div>
+
+      <!-- 에러 메시지 -->
+      {#if errorMessage}
+        <ErrorAlert message={errorMessage} />
       {/if}
     </div>
   </div>
-</div> 
+</div>
+
+<!-- 클리어 기록 -->
+{#if challenge.completed && challenge.score}
+  <div class="mt-4 p-4 bg-dark-100/50 rounded-lg">
+    <div class="text-sm text-gray-400 mb-2">클리어 기록</div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <div class="text-xs text-gray-500">점수</div>
+        <div class="text-white">{challenge.score.score.toLocaleString()}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500">정확도</div>
+        <div class="text-white">{(challenge.score.accuracy * 100).toFixed(2)}%</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500">랭크</div>
+        <div class="text-white">{challenge.score.rank}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500">PP</div>
+        <div class="text-white">{challenge.score.pp.toFixed(2)}pp</div>
+      </div>
+    </div>
+  </div>
+{/if} 

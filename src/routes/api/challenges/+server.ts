@@ -6,6 +6,8 @@ import { startOfDay, endOfDay } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
 import type { Beatmap } from '$lib/types';
 import { z } from 'zod';
+import { type WithoutId } from 'mongodb';
+import type { Challenge } from '$lib/types';
 
 const DIFFICULTY_FACTOR = {
     EASY: { MIN: 0.7, MAX: 0.8 },
@@ -89,13 +91,15 @@ export const GET: RequestHandler = async ({ locals }) => {
             }
         ];
 
-        await db.challenges.insertOne({
+        const newChallenge: WithoutId<Challenge> = {
             user_id: locals.user.id,
             date: today,
             challenges,
             created_at: new Date(),
             updated_at: new Date()
-        });
+        };
+
+        await db.challenges.insertOne(newChallenge);
 
         const responseData = challenges.map((challenge, index) => ({
             ...challenge,

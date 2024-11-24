@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { OSU_CLIENT_ID, OSU_CLIENT_SECRET } from '$env/static/private';
 import jwt from 'jsonwebtoken';
+import { connect } from '$lib/server/db';
 
 export const GET = async ({ url, cookies }: RequestEvent) => {
     const code = url.searchParams.get('code');
@@ -57,6 +58,14 @@ export const GET = async ({ url, cookies }: RequestEvent) => {
             console.error('User response error:', userData);
             throw new Error('Failed to get user info');
         }
+
+        // PP 히스토리 기록
+        const db = await connect();
+        await db.ppHistory.insertOne({
+            user_id: userData.id,
+            pp: userData.statistics.pp,
+            recorded_at: new Date()
+        });
 
         // JWT 생성
         const tokenPayload = {

@@ -7,7 +7,7 @@ import { osuApi } from '$lib/server/osu-api';
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
-        return new Response('Unauthorized', { status: 401 });
+        throw new APIError('Unauthorized', 401);
     }
 
     try {

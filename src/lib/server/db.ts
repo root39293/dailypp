@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import type { Collection } from 'mongodb';
+import type { User, Challenge, PPHistory } from '$lib/types';
 
 if (!import.meta.env.VITE_MONGODB_URI) {
     throw new Error('VITE_MONGODB_URI must be set');
@@ -7,33 +8,10 @@ if (!import.meta.env.VITE_MONGODB_URI) {
 
 const client = new MongoClient(import.meta.env.VITE_MONGODB_URI);
 
-export interface User {
-    _id?: ObjectId;
-    osu_id: string;
-    username: string;
-    pp_raw: number;
-    last_login: Date;
-    created_at: Date;
-    updated_at: Date;
-}
-
-export interface Challenge {
-    _id?: ObjectId;
-    date: Date;
-    user_id: string;
-    challenges: Array<{
-        beatmap_id: string;
-        difficulty: 'EASY' | 'NORMAL' | 'HARD';
-        completed: boolean;
-        completed_at?: Date;
-    }>;
-    created_at: Date;
-    updated_at: Date;
-}
-
 let db: {
     users: Collection<User>;
     challenges: Collection<Challenge>;
+    ppHistory: Collection<PPHistory>;
 } | null = null;
 
 export async function connect() {
@@ -42,8 +20,12 @@ export async function connect() {
         const database = client.db('dailypp');
         db = {
             users: database.collection<User>('users'),
-            challenges: database.collection<Challenge>('challenges')
+            challenges: database.collection<Challenge>('challenges'),
+            ppHistory: database.collection<PPHistory>('ppHistory')
         };
+
+        await db.ppHistory.createIndex({ user_id: 1, recorded_at: 1 });
+        await db.challenges.createIndex({ user_id: 1, date: 1 });
     }
     return db;
 }

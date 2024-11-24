@@ -22,7 +22,6 @@
   $: currentPath = $page.url.pathname;
 </script>
 
-<!-- 사이드바 -->
 <div 
   class="fixed left-0 top-0 h-full bg-dark-100/95 backdrop-blur-xl border-r border-gray-800/50 z-50
          transition-all duration-300 ease-in-out overflow-hidden
@@ -36,82 +35,67 @@
       </h2>
     </div>
 
-    <!-- 네비게이션 메뉴 -->
-    <nav class="flex-1 py-6">
-      <ul class="space-y-1">
-        <li>
-          <a 
-            href="/dashboard" 
-            class="flex items-center h-[50px] px-6 transition-colors
-                   {currentPath === '/dashboard' ? 
-                     'text-osu-pink bg-dark-200/50' : 
-                     'text-gray-400 hover:text-white hover:bg-dark-200/30'}"
-          >
-            <i class="fas fa-home w-5"></i>
-            <span class="ml-4">Dashboard</span>
-          </a>
-        </li>
-        <li>
-          <a 
-            href="/challenges" 
-            class="flex items-center h-[50px] px-6 transition-colors
-                   {currentPath === '/challenges' ? 
-                     'text-osu-pink bg-dark-200/50' : 
-                     'text-gray-400 hover:text-white hover:bg-dark-200/30'}"
-          >
-            <i class="fas fa-trophy w-5"></i>
-            <span class="ml-4">Challenges</span>
-          </a>
-        </li>
-        <li>
-          <a 
-            href="/leaderboard"
-            class="flex items-center h-[50px] px-6 transition-colors
-                   {currentPath === '/leaderboard' ? 
-                     'text-osu-pink bg-dark-200/50' : 
-                     'text-gray-400 hover:text-white hover:bg-dark-200/30'}"
-          >
-            <i class="fas fa-ranking-star w-5"></i>
-            <span class="ml-4">Leaderboard</span>
-          </a>
-        </li>
-        <li>
-          <a 
-            href="/profile"
-            class="flex items-center h-[50px] px-6 transition-colors
-                   {currentPath === '/profile' ? 
-                     'text-osu-pink bg-dark-200/50' : 
-                     'text-gray-400 hover:text-white hover:bg-dark-200/30'}"
-          >
-            <i class="fas fa-chart-line w-5"></i>
-            <span class="ml-4">Stats & Progress</span>
-          </a>
-        </li>
-      </ul>
+    <!-- 네뉴 -->
+    <nav class="flex-1 px-3 py-6 space-y-1">
+      <a
+        href="/"
+        class="flex items-center px-3 py-2 rounded-lg text-sm font-medium
+               {currentPath === '/' ? 'bg-dark-200 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-200/50'}"
+      >
+        <i class="fas fa-home w-5 h-5"></i>
+        <span class="ml-3">Dashboard</span>
+      </a>
+
+      <a
+        href="/challenges"
+        class="flex items-center px-3 py-2 rounded-lg text-sm font-medium
+               {currentPath === '/challenges' ? 'bg-dark-200 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-200/50'}"
+      >
+        <i class="fas fa-trophy w-5 h-5"></i>
+        <span class="ml-3">Challenges</span>
+      </a>
+
+      <a
+        href="/stats"
+        class="flex items-center px-3 py-2 rounded-lg text-sm font-medium
+               {currentPath === '/stats' ? 'bg-dark-200 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-200/50'}"
+      >
+        <i class="fas fa-chart-line w-5 h-5"></i>
+        <span class="ml-3">Stats & Progress</span>
+      </a>
     </nav>
 
     <!-- 유저 프로필 -->
-    <div class="p-6 border-t border-gray-800/50">
-      <div class="flex items-center">
-        <div class="w-10 h-10 rounded-full bg-osu-pink/20 overflow-hidden flex items-center justify-center">
+    <div class="p-4 border-t border-gray-800/50">
+      <a href="/stats" class="flex items-center space-x-3 px-2 py-1.5 rounded-lg hover:bg-dark-200/50">
+        <div class="relative w-10 h-10 rounded-full bg-dark-200 flex items-center justify-center overflow-hidden">
           <img
             src={`https://a.ppy.sh/${user.id}`}
-            alt="Profile"
+            alt="Avatar"
             class="w-full h-full object-cover"
             on:error={handleImageError}
           />
         </div>
-        <div class="flex-1 min-w-0 ml-3">
-          <p class="text-sm font-medium text-white truncate">{user.name}</p>
-          <p class="text-xs text-gray-400 truncate">{user.pp_raw.toFixed(2)}pp</p>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-white truncate">
+            {user.name}
+          </p>
+          <p class="text-xs text-gray-400">
+            {user.pp_raw.toFixed(0)}pp
+          </p>
         </div>
-        <form action="/auth/signout" method="POST">
-          <!-- svelte-ignore a11y_consider_explicit_label -->
-          <button type="submit" class="text-gray-400 hover:text-white ml-2">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
-        </form>
-      </div>
+      </a>
+
+      <!-- 로그아웃 버튼 추가 -->
+      <form action="/auth/signout" method="POST">
+        <button 
+          type="submit"
+          class="w-full mt-2 px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:bg-dark-200/50 hover:text-red-400 transition-colors flex items-center gap-2"
+        >
+          <i class="fas fa-sign-out-alt"></i>
+          로그아웃
+        </button>
+      </form>
     </div>
   </div>
 </div> 

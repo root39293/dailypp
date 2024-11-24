@@ -1,20 +1,19 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { connect } from '$lib/server/db';
-import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
-
-type DifficultyType = 'EASY' | 'NORMAL' | 'HARD';
+import type { ChallengeMap } from '$lib/types';
 
 interface AggregationResult {
-    _id: DifficultyType;
+    _id: ChallengeMap['difficulty'];
     total: number;
     completed: number;
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
-        return new Response('Unauthorized', { status: 401 });
+        throw new APIError('Unauthorized', 401);
     }
 
     try {
@@ -22,7 +21,6 @@ export const GET: RequestHandler = async ({ locals }) => {
         const today = new Date();
         const thirtyDaysAgo = subDays(today, 30);
 
-        // 전체 챌린지 통계
         const stats = await db.challenges.aggregate<AggregationResult>([
             {
                 $match: {
@@ -55,9 +53,10 @@ export const GET: RequestHandler = async ({ locals }) => {
         };
 
         stats.forEach((stat) => {
-            if (stat._id) {
-                formattedStats.byDifficulty[stat._id].total = stat.total;
-                formattedStats.byDifficulty[stat._id].completed = stat.completed;
+            if (stat._id && stat._id in formattedStats.byDifficulty) {
+                const difficulty = stat._id as keyof typeof formattedStats.byDifficulty;
+                formattedStats.byDifficulty[difficulty].total = stat.total;
+                formattedStats.byDifficulty[difficulty].completed = stat.completed;
                 formattedStats.total += stat.total;
                 formattedStats.completed += stat.completed;
             }
