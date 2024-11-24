@@ -54,7 +54,7 @@ cd dailypp
 MONGODB_URI="mongodb_uri"
 OSU_CLIENT_ID="your_osu_client_id"
 OSU_CLIENT_SECRET="your_osu_client_secret"
-PUBLIC_BASE_URL="your_base_url" # 개발: http://localhost:5173
+PUBLIC_BASE_URL="your_vercel_url" # 예: https://dailypp.vercel.app
 ~~~
 
 3. 의존성 설치 및 실행

@@ -13,6 +13,7 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",
+		"@sveltejs/adapter-vercel": "^5.4.8",
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^4.0.0",
 		"@types/jsonwebtoken": "^9.0.7",
@@ -40,5 +41,8 @@
 		"jsonwebtoken": "^9.0.2",
 		"mongodb": "^6.11.0",
 		"zod": "^3.23.8"
+	},
+	"engines": {
+		"node": "20.x"
 	}
 }
