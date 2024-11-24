@@ -10,7 +10,6 @@
     isSidebarOpen.update(value => !value);
   }
 
-  // 키보드 단축키로 사이드바 토글
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === '\\' && (event.ctrlKey || event.metaKey)) {
       toggleSidebar();
@@ -29,6 +28,7 @@
                 {$isSidebarOpen ? 'ml-[280px]' : 'ml-0'} 
                 flex flex-col min-h-screen">
       <!-- 토글 버튼 -->
+      <!-- svelte-ignore a11y_consider_explicit_label -->
       <button 
         class="fixed top-6 {$isSidebarOpen ? 'left-[300px]' : 'left-6'} z-50 p-2 bg-dark-200 rounded-full text-gray-400 hover:text-white
                transition-all duration-300 ease-in-out"

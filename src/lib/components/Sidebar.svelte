@@ -106,6 +106,7 @@
           <p class="text-xs text-gray-400 truncate">{user.pp_raw.toFixed(2)}pp</p>
         </div>
         <form action="/auth/signout" method="POST">
+          <!-- svelte-ignore a11y_consider_explicit_label -->
           <button type="submit" class="text-gray-400 hover:text-white ml-2">
             <i class="fas fa-sign-out-alt"></i>
           </button>
