@@ -28,78 +28,52 @@ const completeChallengeDtoSchema = z.object({
 });
 
 export const GET: RequestHandler = async ({ locals }) => {
+    console.log('GET /api/challenges - Start');
+    
     if (!locals.user) {
+        console.log('GET /api/challenges - Unauthorized');
         return new Response('Unauthorized', { status: 401 });
     }
 
     try {
-        const db = await connect();
+        console.log('User PP:', locals.user.pp_raw);
         
-        const today = new Date();
-        const todayStart = startOfDay(today);
-        const todayEnd = endOfDay(today);
+        // 각 난이도별 비트맵 찾기
+        const easyBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY');
+        console.log('Easy beatmap found:', easyBeatmap);
 
-        let dailyChallenge = await db.challenges.findOne({
-            user_id: locals.user.id,
-            date: {
-                $gte: todayStart,
-                $lte: todayEnd
+        const normalBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL');
+        console.log('Normal beatmap found:', normalBeatmap);
+
+        const hardBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD');
+        console.log('Hard beatmap found:', hardBeatmap);
+
+        const challenges = [
+            {
+                beatmap_id: easyBeatmap.id.toString(),
+                difficulty: 'EASY',
+                completed: false,
+                beatmap: easyBeatmap
+            },
+            {
+                beatmap_id: normalBeatmap.id.toString(),
+                difficulty: 'NORMAL',
+                completed: false,
+                beatmap: normalBeatmap
+            },
+            {
+                beatmap_id: hardBeatmap.id.toString(),
+                difficulty: 'HARD',
+                completed: false,
+                beatmap: hardBeatmap
             }
-        });
+        ];
 
-        if (!dailyChallenge) {
-            const userStats = await osuApi.getUserStats(locals.user.id);
-            const userPP = userStats.pp_raw;
-            
-            const challenges = await Promise.all(
-                (Object.keys(DIFFICULTY_FACTOR) as DifficultyType[]).map(async (difficulty) => {
-                    const factor = DIFFICULTY_FACTOR[difficulty];
-                    const difficultyFactor = factor.MIN + Math.random() * (factor.MAX - factor.MIN);
-                    
-                    try {
-                        const beatmap = await osuApi.findSuitableBeatmap(userPP, difficultyFactor);
-                        return {
-                            beatmap_id: beatmap.id.toString(),
-                            difficulty: difficulty,
-                            completed: false
-                        };
-                    } catch (error) {
-                        console.error(`Failed to find suitable beatmap for ${difficulty}:`, error);
-                        return {
-                            beatmap_id: "75",
-                            difficulty: difficulty,
-                            completed: false
-                        };
-                    }
-                })
-            );
+        console.log('Final challenges:', challenges);
+        return json({ challenges });
 
-            const result = await db.challenges.insertOne({
-                date: today,
-                user_id: locals.user.id,
-                challenges,
-                created_at: new Date(),
-                updated_at: new Date()
-            });
-
-            dailyChallenge = await db.challenges.findOne({ _id: result.insertedId });
-            if (!dailyChallenge) {
-                throw new APIError('Failed to create challenge', 500);
-            }
-        }
-
-        const challengesWithBeatmaps = await Promise.all(
-            dailyChallenge.challenges.map(async (challenge) => {
-                const beatmap = await osuApi.getBeatmap(challenge.beatmap_id);
-                return {
-                    ...challenge,
-                    beatmap
-                };
-            })
-        );
-
-        return json({ challenges: challengesWithBeatmaps });
     } catch (error) {
+        console.error('GET /api/challenges - Error:', error);
         return errorResponse(error);
     }
 };

@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+  import ChallengeCard from '$lib/components/ChallengeCard.svelte';
 
   let challenges: any[] = [];
   let loading = true;
@@ -31,7 +32,7 @@
   }
 
   async function completeChallenge(beatmapId: string) {
-    if (completing) return; 
+    if (completing) return;
     
     completing = beatmapId;
     try {
@@ -55,115 +56,88 @@
     }
   }
 
-  function formatTime(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  }
-
   fetchChallenges();
 </script>
 
-<div class="max-w-4xl mx-auto">
-  <h1 class="text-3xl font-bold text-white mb-8">Today's Challenges</h1>
-
-  {#if loading}
-    <div class="text-center py-8">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-osu-pink mx-auto"></div>
-    </div>
-  {:else if error}
-    <div class="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 rounded-lg p-4 mb-4">
-      {error}
-    </div>
-  {:else}
-    <div class="grid gap-6">
-      {#each challenges as challenge}
-        <div class="bg-dark-100 rounded-lg p-6 shadow-lg border border-gray-700 relative overflow-hidden">
-          <!-- 난이도 배지 -->
-          <div class="absolute top-0 right-0 w-20 h-20">
-            <div class="absolute transform rotate-45 bg-opacity-10 text-sm font-bold py-1 text-center w-28 top-5 right-[-8.5rem]
-              {challenge.difficulty === 'EASY' ? 'bg-green-500 text-green-400' : 
-               challenge.difficulty === 'NORMAL' ? 'bg-yellow-500 text-yellow-400' : 
-               'bg-red-500 text-red-400'}">
-              {challenge.difficulty}
-            </div>
-          </div>
-
-          {#if challenge.beatmap}
-            <div class="space-y-4">
-              <h2 class="text-xl font-semibold text-white pr-16">
-                {challenge.beatmap.title} [{challenge.beatmap.version}]
-              </h2>
-              <div class="text-gray-400 text-sm space-y-2">
-                <p>Mapped by {challenge.beatmap.creator}</p>
-                <div class="flex flex-wrap gap-4">
-                  <span class="flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                    </svg>
-                    {challenge.beatmap.difficulty_rating.toFixed(2)}
-                  </span>
-                  <span class="flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    {challenge.beatmap.bpm} BPM
-                  </span>
-                  <span class="flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {formatTime(challenge.beatmap.total_length)}
-                  </span>
-                </div>
+<div class="min-h-screen bg-gradient-to-b from-dark-200 to-dark-100">
+  <!-- 상단 히어로 섹션 -->
+  <div class="bg-gradient-to-br from-osu-pink/10 via-dark-200 to-dark-100 border-b border-gray-800/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <h1 class="text-4xl sm:text-5xl font-bold text-white">
+            <span class="text-osu-pink">Daily</span> Challenges
+          </h1>
+          <p class="mt-3 text-lg text-gray-400 max-w-2xl">
+            매일 새로운 비트맵으로 자신의 실력을 시험해보세요. 난이도별 3개의 도전과제가 기다리고 있습니다.
+          </p>
+        </div>
+        
+        <!-- 진행 상황 표시 -->
+        {#if !loading && !error && challenges.length > 0}
+          <div class="bg-dark-300/50 backdrop-blur-sm rounded-xl p-4 border border-gray-800/50">
+            <div class="text-sm text-gray-400 mb-2">오늘의 진행상황</div>
+            <div class="flex items-center gap-3">
+              <div class="flex -space-x-2">
+                {#each challenges as challenge}
+                  <div class="w-8 h-8 rounded-full border-2 border-dark-300 flex items-center justify-center
+                    {challenge.completed ? 
+                      'bg-green-500 text-white' : 
+                      'bg-dark-200 text-gray-500'}"
+                  >
+                    <i class="fas fa-check text-xs"></i>
+                  </div>
+                {/each}
+              </div>
+              <div class="text-lg font-bold text-white">
+                {challenges.filter(c => c.completed).length}/{challenges.length}
               </div>
             </div>
-
-            <div class="mt-6 flex justify-between items-center">
-              <a 
-                href={`https://osu.ppy.sh/beatmaps/${challenge.beatmap_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-gray-300 hover:text-osu-pink transition-colors inline-flex items-center"
-              >
-                View Beatmap
-                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-
-              {#if challenge.completed}
-                <span class="text-green-400 flex items-center">
-                  <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Completed
-                  {#if challenge.completed_at}
-                    <span class="text-sm ml-2">
-                      at {new Date(challenge.completed_at).toLocaleTimeString()}
-                    </span>
-                  {/if}
-                </span>
-              {:else}
-                <button 
-                  class="bg-osu-pink hover:bg-opacity-90 text-white px-6 py-2 rounded-md transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  on:click={() => completeChallenge(challenge.beatmap_id)}
-                  disabled={completing === challenge.beatmap_id}
-                >
-                  {#if completing === challenge.beatmap_id}
-                    <span class="flex items-center">
-                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Completing...
-                    </span>
-                  {:else}
-                    Complete
-                  {/if}
-                </button>
-              {/if}
-            </div>
-          {/if}
-        </div>
-      {/each}
+          </div>
+        {/if}
+      </div>
     </div>
-  {/if}
+  </div>
+
+  <!-- 메인 컨텐츠 영역 -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    {#if loading}
+      <div class="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner />
+      </div>
+    {:else if error}
+      <div class="max-w-lg mx-auto">
+        <ErrorAlert message={error} />
+      </div>
+    {:else}
+      <!-- 난이도 필터 -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex gap-2">
+          <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-green-500/20 text-green-400">
+            Easy
+          </div>
+          <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-400">
+            Normal
+          </div>
+          <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-red-500/20 text-red-400">
+            Hard
+          </div>
+        </div>
+        <div class="text-sm text-gray-400">
+          매일 00:00 KST에 갱신
+        </div>
+      </div>
+
+      <!-- 챌린지 카드 그리드 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {#each challenges as challenge}
+          <ChallengeCard 
+            {challenge}
+            onComplete={completeChallenge}
+            {completing}
+          />
+        {/each}
+      </div>
+    {/if}
+  </div>
 </div> 
