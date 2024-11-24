@@ -67,7 +67,7 @@ npm install
 
 2. 환경변수 설정 (.env)
 ~~~bash
-MONGODB_URI="mongodb_uri"
+VITE_MONGODB_URI="mongodb_uri"
 OSU_CLIENT_ID="your_osu_client_id"
 OSU_CLIENT_SECRET="your_osu_client_secret"
 PUBLIC_BASE_URL="your_vercel_url"
