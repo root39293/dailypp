@@ -84,24 +84,38 @@ npm run dev
 src/
 ├── lib/
 │   ├── components/     # 공통 컴포넌트
-│   │   ├── Dashboard.svelte
-│   │   ├── LandingPage.svelte
-│   │   ├── Sidebar.svelte
-│   │   ├── ChallengeCard.svelte
-│   │   └── PPChart.svelte
+│   │   ├── Dashboard.svelte      # 대시보드 컴포넌트
+│   │   ├── LandingPage.svelte    # 랜딩 페이지
+│   │   ├── Sidebar.svelte        # 사이드바 네비게이션
+│   │   ├── ChallengeCard.svelte  # 도전과제 카드
+│   │   ├── PPChart.svelte        # PP 변화 그래프
+│   │   ├── LoadingSpinner.svelte # 로딩 스피너
+│   │   ├── ErrorAlert.svelte     # 에러 알림
+│   │   └── StatsCard.svelte      # 통계 카드
 │   ├── server/        # 서버 관련 유틸리티
-│   │   ├── config.ts
-│   │   ├── db.ts
-│   │   ├── errors.ts
-│   │   └── osu-api.ts
-│   ├── schemas.ts     # 데이터 스키마
-│   └── types.ts       # 타입 정의
+│   │   ├── config.ts   # 서버 설정
+│   │   ├── db.ts       # MongoDB 연결
+│   │   ├── errors.ts   # 에러 처리
+│   │   └── osu-api.ts  # osu! API 래퍼
+│   ├── schemas.ts     # Zod 데이터 스키마
+│   └── types.ts       # TypeScript 타입 정의
 ├── routes/
-│   ├── api/          # API 엔드포인트
-│   ├── auth/         # 인증 관련
-│   ├── challenges/   # 도전과제 페이지
-│   └── stats/        # 통계 페이지
-└── app.css          # 전역 스타일
+│   ├── +layout.svelte           # 루트 레이아웃
+│   ├── +layout.server.ts        # 서버 사이드 레이아웃 로직
+│   ├── api/                     # API 엔드포인트
+│   │   ├── challenges/          # 도전과제 API
+│   │   │   └── complete/        # 도전과제 완료 처리
+│   │   └── user/               # 유저 관련 API
+│   │       ├── dashboard/      # 대시보드 데이터
+│   │       └── stats/         # 통계 데이터
+│   ├── auth/                   # 인증 관련
+│   │   ├── callback/          # OAuth 콜백
+│   │   └── signout/          # 로그아웃
+│   ├── challenges/            # 도전과제 페이지
+│   ├── dashboard/            # 대시보드 페이지
+│   └── stats/               # 통계 페이지
+├── app.html                # HTML 템플릿
+└── app.css                # 전역 스타일
 ~~~
 
 ## 라이선스
