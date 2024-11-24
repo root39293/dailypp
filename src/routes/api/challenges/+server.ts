@@ -4,7 +4,7 @@ import { connect } from '$lib/server/db';
 import { osuApi } from '$lib/server/osu-api';
 import { startOfDay, endOfDay } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
-import type { Challenge } from '$lib/server/db';
+import type { Beatmap } from '$lib/types';
 import { z } from 'zod';
 
 const DIFFICULTY_FACTOR = {
@@ -14,14 +14,6 @@ const DIFFICULTY_FACTOR = {
 } as const;
 
 type DifficultyType = keyof typeof DIFFICULTY_FACTOR;
-
-const MAP_CRITERIA = {
-    MIN_PLAYCOUNT: 1000,
-    LENGTH: {
-        MIN: 60,
-        MAX: 300
-    }
-};
 
 const completeChallengeDtoSchema = z.object({
     beatmap_id: z.string()
@@ -36,41 +28,82 @@ export const GET: RequestHandler = async ({ locals }) => {
     }
 
     try {
-        console.log('User PP:', locals.user.pp_raw);
+        const db = await connect();
+        const today = startOfDay(new Date());
         
-        // 각 난이도별 비트맵 찾기
-        const easyBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY');
-        console.log('Easy beatmap found:', easyBeatmap);
+        const existingChallenge = await db.challenges.findOne({
+            user_id: locals.user.id,
+            date: {
+                $gte: startOfDay(today),
+                $lte: endOfDay(today)
+            }
+        });
 
-        const normalBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL');
-        console.log('Normal beatmap found:', normalBeatmap);
+        if (existingChallenge) {
+            console.log('Returning existing challenges for today');
+            
+            const challengesWithBeatmaps = await Promise.all(
+                existingChallenge.challenges.map(async (challenge) => {
+                    const beatmap = await osuApi.getBeatmap(challenge.beatmap_id);
+                    return {
+                        ...challenge,
+                        beatmap
+                    };
+                })
+            );
 
-        const hardBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD');
-        console.log('Hard beatmap found:', hardBeatmap);
+            return json({ challenges: challengesWithBeatmaps });
+        }
+
+        const usedBeatmapsetIds = new Set<string>();
+        
+        const easyBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY') as Beatmap;
+        usedBeatmapsetIds.add(easyBeatmap.beatmapset_id);
+
+        let normalBeatmap: Beatmap;
+        do {
+            normalBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL') as Beatmap;
+        } while (usedBeatmapsetIds.has(normalBeatmap.beatmapset_id));
+        usedBeatmapsetIds.add(normalBeatmap.beatmapset_id);
+        
+        let hardBeatmap: Beatmap;
+        do {
+            hardBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD') as Beatmap;
+        } while (usedBeatmapsetIds.has(hardBeatmap.beatmapset_id));
 
         const challenges = [
             {
-                beatmap_id: easyBeatmap.id.toString(),
-                difficulty: 'EASY',
-                completed: false,
-                beatmap: easyBeatmap
+                beatmap_id: easyBeatmap.id,
+                difficulty: 'EASY' as const,
+                completed: false
             },
             {
-                beatmap_id: normalBeatmap.id.toString(),
-                difficulty: 'NORMAL',
-                completed: false,
-                beatmap: normalBeatmap
+                beatmap_id: normalBeatmap.id,
+                difficulty: 'NORMAL' as const,
+                completed: false
             },
             {
-                beatmap_id: hardBeatmap.id.toString(),
-                difficulty: 'HARD',
-                completed: false,
-                beatmap: hardBeatmap
+                beatmap_id: hardBeatmap.id,
+                difficulty: 'HARD' as const,
+                completed: false
             }
         ];
 
-        console.log('Final challenges:', challenges);
-        return json({ challenges });
+        await db.challenges.insertOne({
+            user_id: locals.user.id,
+            date: today,
+            challenges,
+            created_at: new Date(),
+            updated_at: new Date()
+        });
+
+        const responseData = challenges.map((challenge, index) => ({
+            ...challenge,
+            beatmap: [easyBeatmap, normalBeatmap, hardBeatmap][index]
+        }));
+
+        console.log('Final challenges:', responseData);
+        return json({ challenges: responseData });
 
     } catch (error) {
         console.error('GET /api/challenges - Error:', error);

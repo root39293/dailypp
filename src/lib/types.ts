@@ -45,3 +45,17 @@ export const MAP_CRITERIA = {
     },
     RECENT_DAYS: 30
 } as const;
+
+export interface Beatmap {
+    id: string;
+    beatmapset_id: string;
+    title: string;
+    artist: string;
+    version: string;
+    difficulty_rating: number;
+    bpm: number;
+    total_length: number;
+    creator: string;
+    cover_url?: string;
+    preview_url?: string;
+}

@@ -37,6 +37,7 @@ function formatBeatmap(beatmap: any) {
     
     return {
         id: beatmap.id.toString(),
+        beatmapset_id: beatmapset.id.toString(),
         title: beatmapset.title,                   
         artist: beatmapset.artist,                 
         version: beatmap.version,
@@ -44,7 +45,7 @@ function formatBeatmap(beatmap: any) {
         bpm: beatmap.bpm,
         total_length: beatmap.total_length,
         creator: beatmapset.creator,                
-        cover_url: beatmapset.covers?.cover,       
+        cover_url: beatmapset.covers?.cover || beatmapset.covers?.['cover@2x'] || beatmapset.covers?.card || beatmapset.covers?.list,
         preview_url: beatmapset.preview_url         
     };
 }
