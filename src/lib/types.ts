@@ -8,6 +8,8 @@ export interface User {
     updated_at: Date;
 }
 
+export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
+
 export interface Challenge {
     _id?: string;
     date: Date;
@@ -18,11 +20,27 @@ export interface Challenge {
 }
 
 export interface ChallengeMap {
+    beatmap: {
+        title: string;
+        version: string;
+        cover_url: string;
+        creator: string;
+        difficulty_rating: number;
+        bpm: number;
+        total_length: number;
+    };
+    difficulty: Difficulty;
     beatmap_id: string;
-    difficulty: 'EASY' | 'NORMAL' | 'HARD';
     completed: boolean;
-    completed_at?: Date;
-    score?: Score;
+    completed_at?: string;
+    score?: {
+        score: number;
+        accuracy: number;
+        max_combo: number;
+        rank: string;
+        created_at: string;
+        pp: number;
+    };
 }
 
 export const DIFFICULTY_FACTOR = {

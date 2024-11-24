@@ -97,7 +97,7 @@
           </div>
 
           <div 
-            class="pt-4"
+            class="pt-4 flex gap-4"
             in:fly={{ y: 50, duration: 1000, delay: 800 }}
           >
             <form action="/auth/signin" method="POST">
@@ -110,6 +110,15 @@
                 osu!로 시작하기
               </button>
             </form>
+
+            <a
+              href="/demo"
+              class="group relative px-8 py-4 bg-dark-200 text-gray-300 rounded-lg text-lg font-medium 
+                     transition-all hover:bg-dark-100 hover:text-white hover:translate-y-[-2px]
+                     border border-gray-700/50"
+            >
+              둘러보기
+            </a>
           </div>
         {/if}
       </div>

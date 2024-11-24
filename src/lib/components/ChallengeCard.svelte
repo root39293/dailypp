@@ -27,6 +27,7 @@
   export let onComplete: (beatmapId: string) => Promise<void>;
   export let completing: string | null;
   let errorMessage: string | null = null;
+  export let isDemo = false;
 
   function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -39,8 +40,15 @@
     img.src = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg@2x.jpg';
   }
 
-  async function handleComplete() {
+  const handleComplete = async () => {
+    if (isDemo) {
+      await onComplete(challenge.beatmap_id);
+      return;
+    }
+
     try {
+      completing = challenge.beatmap_id;
+      
       const response = await fetch('/api/challenges/complete', {
         method: 'POST',
         headers: {
@@ -65,10 +73,18 @@
       } else {
         throw new Error('최근 24시간 이내의 클리어 기록을 찾을 수 없습니다');
       }
-    } catch (err) {
-      errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다';
+    } catch (error) {
+      if (error instanceof Error && error.message === 'DEMO_MODE') {
+        return;
+      }
+      errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다';
+      setTimeout(() => {
+        errorMessage = null;
+      }, 3000);
+    } finally {
+      completing = null;
     }
-  }
+  };
 </script>
 
 <div class="relative bg-dark-300 rounded-2xl overflow-hidden">
@@ -171,16 +187,7 @@
           <button 
             class="flex-grow relative overflow-hidden px-4 py-1.5 rounded-lg bg-osu-pink text-white font-medium text-sm
                    hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            on:click={async () => {
-              try {
-                await handleComplete();
-                if (!errorMessage) {
-                  await onComplete(challenge.beatmap_id);
-                }
-              } catch (err) {
-                console.error('Failed to complete challenge:', err);
-              }
-            }}
+            on:click={handleComplete}
             disabled={completing === challenge.beatmap_id}
           >
             {#if completing === challenge.beatmap_id}
