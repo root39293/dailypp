@@ -9,5 +9,7 @@ export const getBaseUrl = () => {
 };
 
 export const getRedirectUri = () => {
-    return `${getBaseUrl()}/auth/callback`;
+    const baseUrl = getBaseUrl();
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    return `${cleanBaseUrl}/auth/callback`;
 }; 
