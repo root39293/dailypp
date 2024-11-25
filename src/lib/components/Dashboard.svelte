@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   
   export let user: {
     id: string;
@@ -10,10 +10,11 @@
   let dashboardStats = {
     weekly_completed: 0,
     current_streak: 0,
-    pp_growth: 0
+    pp_growth: 0,
+    today_completed: 0
   };
 
-  onMount(async () => {
+  async function fetchDashboardStats() {
     try {
       const response = await fetch('/api/user/dashboard');
       if (response.ok) {
@@ -22,13 +23,21 @@
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
     }
+  }
+
+  let updateInterval: ReturnType<typeof setInterval>;
+
+  onMount(async () => {
+    await fetchDashboardStats();
+    
+    updateInterval = setInterval(fetchDashboardStats, 30000);
   });
 
-  let imageError = false;
-
-  function handleImageError() {
-    imageError = true;
-  }
+  onDestroy(() => {
+    if (updateInterval) {
+      clearInterval(updateInterval);
+    }
+  });
 </script>
 
 <div class="min-h-screen bg-dark-100">
@@ -84,10 +93,13 @@
             <div>
               <div class="flex justify-between mb-2">
                 <span class="text-gray-400">Daily Challenges</span>
-                <span class="text-white font-medium">0/3</span>
+                <span class="text-white font-medium">{dashboardStats.today_completed}/3</span>
               </div>
               <div class="h-2 bg-dark-300 rounded-full overflow-hidden">
-                <div class="h-full bg-osu-pink rounded-full" style="width: 0%"></div>
+                <div 
+                  class="h-full bg-osu-pink rounded-full transition-all duration-500" 
+                  style="width: {(dashboardStats.today_completed / 3) * 100}%"
+                ></div>
               </div>
             </div>
           </div>

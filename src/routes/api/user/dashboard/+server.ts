@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { connect } from '$lib/server/db';
-import { startOfWeek, endOfWeek, subDays } from 'date-fns';
+import { startOfWeek, endOfWeek, subDays, startOfDay, endOfDay } from 'date-fns';
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
@@ -65,10 +65,37 @@ export const GET: RequestHandler = async ({ locals }) => {
             ppGrowth = Math.round(latestPP - oldestPP);
         }
 
+        // 오늘의 챌린지 완료 수 계산
+        const todayStats = await db.challenges.aggregate([
+            {
+                $match: {
+                    user_id: locals.user.id,
+                    date: {
+                        $gte: startOfDay(today),
+                        $lte: endOfDay(today)
+                    }
+                }
+            },
+            {
+                $unwind: '$challenges'
+            },
+            {
+                $match: {
+                    'challenges.completed': true
+                }
+            },
+            {
+                $count: 'completed'
+            }
+        ]).toArray();
+
+        const today_completed = todayStats[0]?.completed || 0;
+
         return json({
             weekly_completed: weeklyCompleted,
             current_streak: currentStreak,
-            pp_growth: ppGrowth
+            pp_growth: ppGrowth,
+            today_completed: today_completed
         });
     } catch (error) {
         console.error('Dashboard stats error:', error);
