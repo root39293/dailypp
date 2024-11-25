@@ -119,9 +119,9 @@
     </div>
   </div>
 
-  <div class="relative p-6">
+  <div class="relative p-6 space-y-6">
     <!-- 매퍼 정보 -->
-    <div class="flex items-center space-x-2 mb-4">
+    <div class="flex items-center space-x-2">
       <div class="w-8 h-8 rounded-full bg-dark-200 flex items-center justify-center">
         <svg class="w-4 h-4 text-osu-pink" fill="currentColor" viewBox="0 0 20 20">
           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
@@ -133,7 +133,7 @@
     </div>
 
     <!-- 비트맵 스탯 -->
-    <div class="grid grid-cols-3 gap-2 bg-dark-400/50 rounded-xl p-3 mb-4">
+    <div class="grid grid-cols-3 gap-2 bg-dark-400/50 rounded-xl p-3">
       <div class="text-center">
         <div class="text-yellow-400 text-lg font-bold">
           {challenge.beatmap.difficulty_rating.toFixed(2)}★
@@ -154,7 +154,7 @@
       </div>
     </div>
 
-    <!-- 액션 버튼과 에러 메시지를 포함하는 컨테이너 -->
+    <!-- 액션 버튼과 에러 메시지 -->
     <div class="space-y-3">
       <!-- 액션 버튼 -->
       <div class="flex items-center justify-between gap-3">
@@ -207,30 +207,58 @@
         <ErrorAlert message={errorMessage} />
       {/if}
     </div>
-  </div>
-</div>
 
-<!-- 클리어 기록 -->
-{#if challenge.completed && challenge.score}
-  <div class="mt-4 p-4 bg-dark-100/50 rounded-lg">
-    <div class="text-sm text-gray-400 mb-2">클리어 기록</div>
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <div class="text-xs text-gray-500">점수</div>
-        <div class="text-white">{challenge.score.score.toLocaleString()}</div>
+    <!-- 클리어 기록 -->
+    {#if challenge.completed && challenge.score}
+      <div class="mt-6 pt-6 border-t border-gray-800/50">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-4 h-4 rounded-lg bg-green-500/20 flex items-center justify-center">
+            <i class="fas fa-check text-xs text-green-400"></i>
+          </div>
+          <div class="text-sm text-gray-400">클리어 기록</div>
+          <div class="text-xs text-gray-500 ml-auto">
+            {new Date(challenge.score.created_at).toLocaleString()}
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs text-gray-500 mb-1">점수</div>
+            <div class="text-white font-medium">
+              {challenge.score.score.toLocaleString()}
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">정확도</div>
+            <div class="text-white font-medium">
+              {(challenge.score.accuracy * 100).toFixed(2)}%
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">랭크</div>
+            <div class="flex items-center gap-2">
+              <div class={`text-lg font-bold
+                ${challenge.score.rank === 'S' || challenge.score.rank === 'SH' ? 'text-yellow-400' : 
+                  challenge.score.rank === 'A' ? 'text-green-400' : 
+                  challenge.score.rank === 'B' ? 'text-blue-400' : 
+                  challenge.score.rank === 'C' ? 'text-purple-400' : 
+                  challenge.score.rank === 'D' ? 'text-red-400' : 'text-white'}`}>
+                {challenge.score.rank}
+              </div>
+              {#if challenge.score.rank === 'SH' || challenge.score.rank === 'SSH'}
+                <i class="fas fa-sparkles text-yellow-400 text-sm"></i>
+              {/if}
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">PP</div>
+            <div class="text-white font-medium">
+              {challenge.score.pp.toFixed(2)}
+              <span class="text-osu-pink text-sm">pp</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">정확도</div>
-        <div class="text-white">{(challenge.score.accuracy * 100).toFixed(2)}%</div>
-      </div>
-      <div>
-        <div class="text-xs text-gray-500">랭크</div>
-        <div class="text-white">{challenge.score.rank}</div>
-      </div>
-      <div>
-        <div class="text-xs text-gray-500">PP</div>
-        <div class="text-white">{challenge.score.pp.toFixed(2)}pp</div>
-      </div>
-    </div>
+    {/if}
   </div>
-{/if} 
+</div> 
