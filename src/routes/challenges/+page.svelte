@@ -102,8 +102,10 @@
   <!-- 메인 컨텐츠 영역 -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
     {#if loading}
-      <div class="flex items-center justify-center min-h-[400px]">
-        <LoadingSpinner />
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {#each Array(3) as _}
+          <div class="animate-pulse bg-dark-200 rounded-xl h-64"></div>
+        {/each}
       </div>
     {:else if error}
       <div class="max-w-lg mx-auto">

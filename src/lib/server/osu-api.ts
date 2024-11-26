@@ -79,6 +79,23 @@ export const osuApi = {
         return formatBeatmap(data);
     },
 
+    async getBeatmaps(beatmapIds: string[]) {
+        const token = await getToken();
+        
+        const beatmaps = await Promise.all(
+            beatmapIds.map(id => 
+                fetch(`https://osu.ppy.sh/api/v2/beatmaps/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).then(res => res.json())
+            )
+        );
+
+        return beatmaps.reduce((acc, beatmap) => {
+            acc[beatmap.id] = formatBeatmap(beatmap);
+            return acc;
+        }, {} as Record<string, ReturnType<typeof formatBeatmap>>);
+    },
+
     async findSuitableBeatmap(userPP: number, difficultyType: 'EASY' | 'NORMAL' | 'HARD') {
         console.log('\n=== findSuitableBeatmap Start ===');
         console.log(`Finding ${difficultyType} beatmap for PP: ${userPP}`);

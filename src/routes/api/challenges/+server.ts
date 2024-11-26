@@ -18,6 +18,15 @@ interface BeatmapData {
     cover_url: string;
 }
 
+interface ChallengeWithChallenges {
+    _id: string;
+    user_id: string;
+    date: Date;
+    challenges: ChallengeMap[];
+    created_at: Date;
+    updated_at: Date;
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
         throw new APIError('Unauthorized', 401);
@@ -34,18 +43,16 @@ export const GET: RequestHandler = async ({ locals }) => {
                 $gte: startOfDay(today),
                 $lte: endOfDay(today)
             }
-        });
+        }).lean() as ChallengeWithChallenges | null;
 
         if (existingChallenge) {
-            const enrichedChallenges = await Promise.all(
-                existingChallenge.challenges.map(async (challenge: ChallengeMap) => {
-                    const beatmap = await osuApi.getBeatmap(challenge.beatmap_id);
-                    return {
-                        ...challenge,
-                        beatmap
-                    };
-                })
-            );
+            const beatmapIds = existingChallenge.challenges.map(c => c.beatmap_id);
+            const beatmaps = await osuApi.getBeatmaps(beatmapIds);
+
+            const enrichedChallenges = existingChallenge.challenges.map(challenge => ({
+                ...challenge,
+                beatmap: beatmaps[challenge.beatmap_id]
+            }));
 
             return json({ challenges: enrichedChallenges });
         }
