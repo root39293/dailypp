@@ -29,8 +29,49 @@
 
 ## 맵 추천 알고리즘
 
-### 난이도 계산 수식
-`difficulty_range(stable_top_play_stars, type) = stable_top_play_stars + offset(type) ± margin(type)` where `offset = {EASY: -1.0, NORMAL: -0.25, HARD: +0.6}, margin = 0.25`
+## 난이도 계산 수식
+
+난이도 범위는 다음 공식을 사용하여 계산됩니다:
+
+### 기본 공식
+```
+difficulty_range = stable_top_play_stars + offset ± margin
+```
+
+### 상수값
+
+#### 난이도별 offset
+- 쉬움(EASY): -1.0
+- 보통(NORMAL): -0.25
+- 어려움(HARD): +0.6
+
+#### margin
+모든 난이도에 대해 ±0.25의 margin이 적용됩니다
+
+### 난이도별 상세 계산식
+
+#### Easy
+```
+difficulty_range = stable_top_play_stars - 1.0 ± 0.25
+```
+
+#### Normal
+```
+difficulty_range = stable_top_play_stars - 0.25 ± 0.25
+```
+
+#### Hard
+```
+difficulty_range = stable_top_play_stars + 0.6 ± 0.25
+```
+
+### 예시
+`stable_top_play_stars`가 4.0인 경우(즉 안정적으로 클리어한 최고성과 기록이 4.0★인 경우):
+
+- Easy: 2.75★~3.25★
+- Normal: 3.5★~4.0★
+- Hard: 4.35★~4.85★
+
 
 ### 현재 구현 (1000pp 이상)
 1. 유저의 상위 기록 분석
@@ -101,24 +142,30 @@
 ## API 엔드포인트
 
 ### 인증
-- `POST /auth/signin`: osu! OAuth 로그인
-- `POST /auth/signout`: 로그아웃
-- `GET /auth/callback`: OAuth 콜백 처리
+~~~
+POST /auth/signin: osu! OAuth 로그인
+POST /auth/signout: 로그아웃
+GET /auth/callback: OAuth 콜백 처리
+~~~
 
 ### 사용자
-- `GET /api/user`: 사용자 통계 조회
-- `PUT /api/user`: 사용자 설정 업데이트
-- `GET /api/user/stats`: 도전과제 달성 통계 조회
-- `GET /api/user/history`: 도전과제 이력 조회
-- `GET /api/user/pp-history`: PP 변화 이력 조회
-- `GET /api/user/dashboard`: 대시보드 통계 조회 (주간/일간 달성률, PP 성장)
+~~~
+GET /api/user: 사용자 정보 및 통계 조회
+PUT /api/user: 사용자 설정 업데이트
+GET /api/user/stats: 도전과제 통계 조회 (난이도별 완료율)
+GET /api/user/history: 도전과제 상세 이력 조회
+GET /api/user/pp-history: PP 변화 이력 조회
+GET /api/user/dashboard: 대시보드 요약 통계 조회 (주간/일간 완료, PP 성장)
+~~~
 
 ### 도전과제
-- `GET /api/challenges`: 오늘의 도전과제 조회/생성
-- `POST /api/challenges`: 도전과제 상태 업데이트
-- `POST /api/challenges/complete`: 도전과제 완료 처리 및 검증
-- `POST /api/challenges/feedback`: 비트맵 피드백 제출
-- `POST /api/challenges/setting-goal`: 목표 설정 (TODO)
+~~~
+GET /api/challenges: 오늘의 도전과제 조회/생성
+POST /api/challenges: 도전과제 상태 업데이트
+POST /api/challenges/complete: 도전과제 완료 처리 (스코어 검증)
+POST /api/challenges/feedback: 비트맵 피드백 제출
+POST /api/challenges/setting-goal: 목표 설정 (개발 중)
+~~~
 
 ## 개발 환경 설정
 
