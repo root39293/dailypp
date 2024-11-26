@@ -10,7 +10,9 @@ export const connectDB = async () => {
     try {
         if (!connection) {
             connection = await mongoose.connect(import.meta.env.VITE_MONGODB_URI, {
-                dbName: 'dailypp'
+                dbName: 'dailypp',
+                serverSelectionTimeoutMS: 5000,
+                socketTimeoutMS: 45000,
             });
             console.log('Mongoose connected successfully to dailypp database');
         }

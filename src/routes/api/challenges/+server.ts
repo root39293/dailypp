@@ -45,56 +45,43 @@ interface ChallengeDocument {
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
-    console.log('GET /api/challenges - locals:', locals);
-    console.log('GET /api/challenges - user:', locals.user);
-
-    if (!locals.user) {
-        throw new APIError('Unauthorized', 401);
-    }
-
     try {
-        await connectDB();
-        const today = new Date();
+        if (!locals.user) {
+            throw new APIError('Unauthorized', 401);
+        }
 
-        // 오늘의 챌린지 확인
+        await connectDB();
+        
+        // 오늘 날짜의 챌린지가 있는지 확인
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         const existingChallenge = await ChallengeModel.findOne({
             user_id: locals.user.id,
-            date: {
-                $gte: startOfDay(today),
-                $lte: endOfDay(today)
-            }
-        }).lean() as ChallengeDocument | null;
+            date: today
+        });
 
         if (existingChallenge) {
-            try {
-                const beatmapIds = existingChallenge.challenges.map((c: Challenge) => c.beatmap_id);
-                const beatmaps = await osuApi.getBeatmaps(beatmapIds);
-
-                const enrichedChallenges = existingChallenge.challenges.map((challenge: Challenge) => ({
-                    ...challenge,
-                    beatmap: beatmaps[challenge.beatmap_id] || null
-                }));
-
-                return json({ challenges: enrichedChallenges });
-            } catch (error) {
-                console.error('Error fetching beatmaps:', error);
-                return json({ challenges: existingChallenge.challenges });
-            }
+            return json(existingChallenge);
         }
 
         // 새로운 챌린지 생성
         try {
+            // 유저의 최고 성적 기반으로 비트맵 추천
+            const stableTopPlayStars = await osuApi.getStableTopPlayStars(locals.user.id);
+            console.log(`User ${locals.user.id} stable top play stars: ${stableTopPlayStars}`);
+
             const [easyBeatmap, normalBeatmap, hardBeatmap] = await Promise.all([
-                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY'),
-                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL'),
-                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD')
-            ]) as [BeatmapData, BeatmapData, BeatmapData];
+                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY', locals.user.id),
+                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL', locals.user.id),
+                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD', locals.user.id)
+            ]);
 
             if (!easyBeatmap?.id || !normalBeatmap?.id || !hardBeatmap?.id) {
                 throw new Error('Failed to fetch suitable beatmaps');
             }
 
-            const challenges: ChallengeMap[] = [
+            const challenges = [
                 {
                     beatmap_id: easyBeatmap.id,
                     difficulty: 'EASY',
@@ -147,15 +134,12 @@ export const GET: RequestHandler = async ({ locals }) => {
                 updated_at: new Date()
             });
 
-            return json({ challenges });
-
+            return json(newChallenge);
         } catch (error) {
-            console.error('Error creating new challenges:', error);
-            throw new APIError('Failed to create new challenges', 500);
+            console.error('Error creating challenge:', error);
+            throw error;
         }
-
     } catch (error) {
-        console.error('GET /api/challenges - Error:', error);
         return errorResponse(error);
     }
 };

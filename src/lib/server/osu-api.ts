@@ -51,7 +51,6 @@ function formatBeatmap(beatmap: any) {
     };
 }
 
-// 기본 비트맵
 const DEFAULT_BEATMAP = {
     id: "75",
     title: "Default Beatmap",
@@ -60,10 +59,10 @@ const DEFAULT_BEATMAP = {
     bpm: 120,
     total_length: 142,
     creator: "peppy",
-    cover_url: 'https://osu.ppy.sh/images/layout/beatmaps/default-bg@2x.jpg'  // 기본 이미지 URL 추가
+    cover_url: 'https://osu.ppy.sh/images/layout/beatmaps/default-bg@2x.jpg'
 };
 
-// API 응답 타입 정의
+
 interface BeatmapsetSearchResponse {
     beatmapsets: Beatmapset[];
 }
@@ -89,6 +88,50 @@ interface Beatmap {
     version: string;
     difficulty_rating: number;
     total_length: number;
+}
+
+interface DifficultyRange {
+    min: number;
+    max: number;
+}
+
+function calculateDifficultyRange(pp: number, stableTopPlayStars: number, difficulty: 'EASY' | 'NORMAL' | 'HARD'): DifficultyRange {
+    // 1000pp 미만 초보자용 난이도 계산
+    if (pp < 1000) {
+        if (pp <= 300) {
+            return {
+                EASY: { min: 2.0, max: 2.3 },
+                NORMAL: { min: 2.3, max: 2.6 },
+                HARD: { min: 2.6, max: 2.9 }
+            }[difficulty];
+        } else if (pp <= 600) {
+            return {
+                EASY: { min: 2.5, max: 2.8 },
+                NORMAL: { min: 2.8, max: 3.1 },
+                HARD: { min: 3.1, max: 3.4 }
+            }[difficulty];
+        } else {
+            return {
+                EASY: { min: 3.0, max: 3.3 },
+                NORMAL: { min: 3.3, max: 3.6 },
+                HARD: { min: 3.6, max: 4.0 }
+            }[difficulty];
+        }
+    }
+
+    // 1000pp 이상 일반 유저용 난이도 계산
+    const offsets = {
+        EASY: -1.0,
+        NORMAL: -0.25,
+        HARD: 0.6
+    };
+    const margin = 0.25;
+
+    const baseStars = stableTopPlayStars + offsets[difficulty];
+    return {
+        min: baseStars - margin,
+        max: baseStars + margin
+    };
 }
 
 export const osuApi = {
@@ -124,145 +167,6 @@ export const osuApi = {
             acc[beatmap.id] = formatBeatmap(beatmap);
             return acc;
         }, {} as Record<string, ReturnType<typeof formatBeatmap>>);
-    },
-
-    async findSuitableBeatmap(userPP: number, difficulty: 'EASY' | 'NORMAL' | 'HARD') {
-        try {
-            console.log(`Finding beatmap for PP: ${userPP}, Difficulty: ${difficulty}`);
-            
-            const effectivePP = Math.max(userPP, DIFFICULTY_FACTOR[difficulty].BASE_PP);
-            const baseDifficulty = Math.sqrt(effectivePP) / 10;
-            
-            let minDifficulty, maxDifficulty;
-            
-            switch(difficulty) {
-                case 'EASY':
-                    minDifficulty = baseDifficulty * 0.7;
-                    maxDifficulty = baseDifficulty * 0.8;
-                    break;
-                case 'NORMAL':
-                    minDifficulty = baseDifficulty * 0.8;
-                    maxDifficulty = baseDifficulty * 0.9;
-                    break;
-                case 'HARD':
-                    minDifficulty = baseDifficulty * 0.9;
-                    maxDifficulty = baseDifficulty * 1.0;
-                    break;
-            }
-
-            console.log(`Calculated difficulty range: ${minDifficulty.toFixed(2)} - ${maxDifficulty.toFixed(2)}`);
-
-            const token = await getToken();
-            const response = await fetch('https://osu.ppy.sh/api/v2/beatmapsets/search', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
-            }
-
-            const data = await response.json() as BeatmapsetSearchResponse;
-            console.log(`Found ${data.beatmapsets?.length} beatmapsets`);
-
-            // 모든 비트맵셋에서 적절한 난이도의 비트맵 추출
-            const suitableMaps = data.beatmapsets.flatMap((set: Beatmapset) => 
-                set.beatmaps
-                    .filter((map: Beatmap) => 
-                        map.mode === 'osu' &&
-                        map.difficulty_rating >= minDifficulty &&
-                        map.difficulty_rating <= maxDifficulty
-                    )
-                    .map((map: Beatmap) => ({
-                        id: map.id.toString(),
-                        title: set.title,
-                        version: map.version,
-                        difficulty_rating: map.difficulty_rating,
-                        bpm: set.bpm,
-                        total_length: map.total_length,
-                        creator: set.creator,
-                        cover_url: set.covers?.cover || 
-                                 set.covers?.['cover@2x'] || 
-                                 set.covers?.card || 
-                                 'https://osu.ppy.sh/images/layout/beatmaps/default-bg@2x.jpg'
-                    }))
-            );
-
-            console.log(`Found ${suitableMaps.length} suitable maps`);
-
-            if (!suitableMaps.length) {
-                console.log('No suitable maps found, returning default');
-                return DEFAULT_BEATMAP;
-            }
-
-            // 무작위로 비트맵 선택
-            const selectedMap = suitableMaps[Math.floor(Math.random() * suitableMaps.length)];
-            console.log('Selected map:', selectedMap);
-
-            return selectedMap;
-
-        } catch (error) {
-            console.error('Error in findSuitableBeatmap:', error);
-            return DEFAULT_BEATMAP;
-        }
-    },
-
-    // 기본 난이도 범위로 비트맵 검색
-    async findBeatmapWithDefaultDifficulty(difficulty: 'EASY' | 'NORMAL' | 'HARD') {
-        try {
-            console.log(`Trying default difficulty range for ${difficulty}`);
-            
-            const defaultRanges = {
-                EASY: { min: 2.0, max: 3.0 },
-                NORMAL: { min: 3.0, max: 4.0 },
-                HARD: { min: 4.0, max: 5.0 }
-            };
-
-            const searchParams = new URLSearchParams({
-                mode: 'osu',
-                status: 'ranked',
-                sort: 'difficulty_rating',
-                min_difficulty: defaultRanges[difficulty].min.toString(),
-                max_difficulty: defaultRanges[difficulty].max.toString(),
-                min_length: '30',
-                max_length: '300'
-            });
-
-            const token = await getToken();
-            console.log('Default API Request URL:', `https://osu.ppy.sh/api/v2/beatmaps?${searchParams}`);
-
-            const response = await fetch(`https://osu.ppy.sh/api/v2/beatmaps?${searchParams}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Default API Error Response:', errorText);
-                throw new Error(`Default API request failed: ${response.status} ${response.statusText}`);
-            }
-
-            const beatmaps = await response.json();
-            console.log(`Found ${beatmaps.length} beatmaps with default difficulty`);
-
-            if (!beatmaps.length) {
-                console.error('No beatmaps found even with default difficulty');
-                return DEFAULT_BEATMAP;
-            }
-
-            const selectedBeatmap = beatmaps[Math.floor(Math.random() * beatmaps.length)];
-            console.log('Selected default beatmap:', selectedBeatmap.id);
-            
-            return selectedBeatmap;
-
-        } catch (error) {
-            console.error('Error in findBeatmapWithDefaultDifficulty:', error);
-            return DEFAULT_BEATMAP;
-        }
     },
 
     async getUserRecentScore(userId: string, beatmapId: string) {
@@ -309,6 +213,137 @@ export const osuApi = {
                 created_at: recentScore.created_at,
                 pp: recentScore.pp
             };
+        }
+    },
+
+    async getStableTopPlayStars(userId: string): Promise<number> {
+        const token = await getToken();
+        
+        try {
+            const response = await fetch(
+                `https://osu.ppy.sh/api/v2/users/${userId}/scores/best?mode=osu&limit=10&score_type=best`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user best scores');
+            }
+
+            const scores = await response.json();
+            
+            // 정확도가 95% 이상인 상위 3개 점수만 필터링
+            const highAccuracyScores = scores
+                .filter((score: any) => score.accuracy >= 0.95)
+                .slice(0, 3);  // 상위 3개만 사용
+
+            if (!highAccuracyScores.length) {
+                console.log('No scores with 95%+ accuracy found in top plays');
+                return 2.0;
+            }
+
+            console.log(`Found ${highAccuracyScores.length} high accuracy scores in top plays`);
+
+            // 모드별 난이도 조정 (기존과 동일)
+            const adjustedScores = highAccuracyScores.map((score: any) => {
+                let difficulty = score.beatmap.difficulty_rating;
+                
+                if (score.mods.includes('DT') || score.mods.includes('NC')) {
+                    difficulty *= 1.4;
+                }
+                
+                if (score.mods.includes('HR')) {
+                    difficulty *= 1.05;
+                }
+                
+                if (score.mods.includes('EZ') || score.mods.includes('HT')) {
+                    return 0;
+                }
+
+                console.log(`Score adjustment - Original: ${score.beatmap.difficulty_rating}★, Mods: ${score.mods.join(',')}, Adjusted: ${difficulty}★, Accuracy: ${(score.accuracy * 100).toFixed(2)}%`);
+                return difficulty;
+            });
+
+            const validScores = adjustedScores.filter(d => d > 0);
+            const stableTopPlayStars = Math.max(...validScores);
+
+            console.log(`User ${userId} stable top play stars (with mods): ${stableTopPlayStars}`);
+            return stableTopPlayStars;
+
+        } catch (error) {
+            console.error('Error fetching stable top play stars:', error);
+            return 2.0;
+        }
+    },
+
+    async findSuitableBeatmap(userPP: number, difficulty: 'EASY' | 'NORMAL' | 'HARD', userId: string) {
+        try {
+            const stableTopPlayStars = await this.getStableTopPlayStars(userId);
+            console.log(`Stable top play stars for user ${userId}: ${stableTopPlayStars}`);
+            
+            const difficultyRange = calculateDifficultyRange(userPP, stableTopPlayStars, difficulty);
+            console.log(`Calculated difficulty range: ${difficultyRange.min.toFixed(2)} - ${difficultyRange.max.toFixed(2)}`);
+
+            const searchParams = new URLSearchParams({
+                mode: 'osu',
+                status: 'ranked',
+                sort: 'difficulty_rating',
+                min_difficulty: difficultyRange.min.toString(),
+                max_difficulty: difficultyRange.max.toString(),
+                min_length: '30',
+                max_length: '300'
+            });
+
+            const token = await getToken();
+            const response = await fetch(`https://osu.ppy.sh/api/v2/beatmapsets/search?${searchParams}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // beatmapsets에서 적절한 난이도의 비트맵 찾기
+            const suitableMaps = data.beatmapsets.flatMap((set: any) => 
+                set.beatmaps
+                    .filter((map: any) => 
+                        map.mode === 'osu' &&
+                        map.difficulty_rating >= difficultyRange.min &&
+                        map.difficulty_rating <= difficultyRange.max
+                    )
+                    .map((map: any) => ({
+                        id: map.id.toString(),
+                        title: set.title,
+                        version: map.version,
+                        difficulty_rating: map.difficulty_rating,
+                        bpm: set.bpm,
+                        total_length: map.total_length,
+                        creator: set.creator,
+                        cover_url: set.covers?.cover || set.covers?.['cover@2x'] || ''
+                    }))
+            );
+
+            console.log(`Found ${suitableMaps.length} suitable maps`);
+
+            if (!suitableMaps.length) {
+                console.log('No suitable maps found, returning default');
+                return DEFAULT_BEATMAP;
+            }
+
+            const selectedMap = suitableMaps[Math.floor(Math.random() * suitableMaps.length)];
+            return selectedMap;
+
+        } catch (error) {
+            console.error('Error in findSuitableBeatmap:', error);
+            return DEFAULT_BEATMAP;
         }
     }
 };
