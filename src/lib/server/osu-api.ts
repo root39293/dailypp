@@ -123,7 +123,7 @@ function calculateDifficultyRange(pp: number, stableTopPlayStars: number, diffic
     const offsets = {
         EASY: -1.0,
         NORMAL: -0.25,
-        HARD: 0.6
+        HARD: 0.45
     };
     const margin = 0.25;
 
