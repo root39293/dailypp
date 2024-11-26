@@ -267,7 +267,7 @@ export const osuApi = {
                 return difficulty;
             });
 
-            const validScores = adjustedScores.filter(d => d > 0);
+            const validScores = adjustedScores.filter((d: number) => d > 0);
             const stableTopPlayStars = Math.max(...validScores);
 
             console.log(`User ${userId} stable top play stars (with mods): ${stableTopPlayStars}`);
