@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { connect } from '$lib/server/db';
+import { connectDB } from '$lib/server/mongoose/connection';
 import { subDays } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
 import type { ChallengeMap } from '$lib/types';
+import { ChallengeModel } from '$lib/server/mongoose/models';
 
 interface AggregationResult {
     _id: ChallengeMap['difficulty'];
@@ -17,11 +18,11 @@ export const GET: RequestHandler = async ({ locals }) => {
     }
 
     try {
-        const db = await connect();
+        await connectDB();
         const today = new Date();
         const thirtyDaysAgo = subDays(today, 30);
 
-        const stats = await db.challenges.aggregate<AggregationResult>([
+        const stats = await ChallengeModel.aggregate<AggregationResult>([
             {
                 $match: {
                     user_id: locals.user.id,
@@ -40,7 +41,7 @@ export const GET: RequestHandler = async ({ locals }) => {
                     }
                 }
             }
-        ]).toArray();
+        ]);
 
         const formattedStats = {
             total: 0,

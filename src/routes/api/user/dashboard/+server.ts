@@ -1,63 +1,28 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { connect } from '$lib/server/db';
-import { startOfWeek, endOfWeek, subDays, startOfDay, endOfDay } from 'date-fns';
+import { connectDB } from '$lib/server/mongoose/connection';
+import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { APIError, errorResponse } from '$lib/server/errors';
+import { ChallengeModel, PPHistoryModel } from '$lib/server/mongoose/models';
+import type { ChallengeMap, ChallengeDocument } from '$lib/types';
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
-        return new Response('Unauthorized', { status: 401 });
+        throw new APIError('Unauthorized', 401);
     }
 
     try {
-        const db = await connect();
+        await connectDB();
         const today = new Date();
-        const weekStart = startOfWeek(today);
-        const weekEnd = endOfWeek(today);
         const thirtyDaysAgo = subDays(today, 30);
 
-        // 1. 이번 주 완료한 챌린지 수 계산
-        const weeklyStats = await db.challenges.aggregate([
-            {
-                $match: {
-                    user_id: locals.user.id,
-                    date: { $gte: weekStart, $lte: weekEnd }
-                }
-            },
-            {
-                $unwind: '$challenges'
-            },
-            {
-                $match: {
-                    'challenges.completed': true
-                }
-            },
-            {
-                $count: 'completed'
-            }
-        ]).toArray();
-
-        const weeklyCompleted = weeklyStats[0]?.completed || 0;
-
-        // 2. 현재 스트릭 계산 (연속으로 하루 1개 이상 완료)
-        const recentChallenges = await db.challenges.find({
-            user_id: locals.user.id,
-            date: { $lte: today }
-        }).sort({ date: -1 }).toArray();
-
-        let currentStreak = 0;
-        for (const challenge of recentChallenges) {
-            if (challenge.challenges.some(c => c.completed)) {
-                currentStreak++;
-            } else {
-                break;
-            }
-        }
-
-        const ppHistory = await db.ppHistory.find({
+        // PP 히스토리 조회
+        const ppHistory = await PPHistoryModel.find({
             user_id: locals.user.id,
             recorded_at: { $gte: thirtyDaysAgo }
-        }).sort({ recorded_at: 1 }).toArray();
+        }).sort({ recorded_at: 1 });
 
+        // PP 성장률 계산
         let ppGrowth = 0;
         if (ppHistory.length >= 2) {
             const oldestPP = ppHistory[0].pp;
@@ -66,7 +31,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         }
 
         // 오늘의 챌린지 완료 수 계산
-        const todayStats = await db.challenges.aggregate([
+        const todayStats = await ChallengeModel.aggregate([
             {
                 $match: {
                     user_id: locals.user.id,
@@ -87,18 +52,60 @@ export const GET: RequestHandler = async ({ locals }) => {
             {
                 $count: 'completed'
             }
-        ]).toArray();
+        ]);
+
+        // 주간 완료 수 계산
+        const weeklyCompleted = await ChallengeModel.aggregate([
+            {
+                $match: {
+                    user_id: locals.user.id,
+                    date: {
+                        $gte: subDays(today, 7),
+                        $lte: today
+                    }
+                }
+            },
+            {
+                $unwind: '$challenges'
+            },
+            {
+                $match: {
+                    'challenges.completed': true
+                }
+            },
+            {
+                $count: 'completed'
+            }
+        ]);
+
+        // 연속 달성 스트릭 계산
+        let currentStreak = 0;
+        const streakData = await ChallengeModel.find({
+            user_id: locals.user.id,
+            date: { $lte: today }
+        })
+        .sort({ date: -1 })
+        .limit(30); // 최대 30일까지만 확인
+
+        for (const day of streakData) {
+            if (day.challenges.some((c: ChallengeMap) => c.completed)) {
+                currentStreak++;
+            } else {
+                break;
+            }
+        }
 
         const today_completed = todayStats[0]?.completed || 0;
+        const weekly_completed = weeklyCompleted[0]?.completed || 0;
 
         return json({
-            weekly_completed: weeklyCompleted,
+            weekly_completed,
             current_streak: currentStreak,
             pp_growth: ppGrowth,
-            today_completed: today_completed
+            today_completed
         });
+
     } catch (error) {
-        console.error('Dashboard stats error:', error);
-        return new Response('Internal Server Error', { status: 500 });
+        return errorResponse(error);
     }
 }; 

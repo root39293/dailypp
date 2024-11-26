@@ -1,5 +1,7 @@
-export interface User {
-    _id: string;
+import type { Document } from 'mongoose';
+
+// Mongoose 문서 타입
+export interface UserDocument extends Document {
     osu_id: string;
     username: string;
     pp_raw: number;
@@ -8,13 +10,26 @@ export interface User {
     updated_at: Date;
 }
 
-export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
-
-export interface Challenge {
-    _id?: string;
+export interface ChallengeDocument extends Document {
     date: Date;
     user_id: string;
     challenges: ChallengeMap[];
+    created_at: Date;
+    updated_at: Date;
+}
+
+export interface PPHistoryDocument extends Document {
+    user_id: string;
+    pp: number;
+    recorded_at: Date;
+}
+
+// 기존 인터페이스들은 유지
+export interface User {
+    osu_id: string;
+    username: string;
+    pp_raw: number;
+    last_login: Date;
     created_at: Date;
     updated_at: Date;
 }
@@ -29,7 +44,7 @@ export interface ChallengeMap {
         bpm: number;
         total_length: number;
     };
-    difficulty: Difficulty;
+    difficulty: 'EASY' | 'NORMAL' | 'HARD';
     beatmap_id: string;
     completed: boolean;
     completed_at?: string;
@@ -79,12 +94,6 @@ export interface Beatmap {
     creator: string;
     cover_url?: string;
     preview_url?: string;
-}
-
-export interface PPHistory {
-    user_id: string;
-    pp: number;
-    recorded_at: Date;
 }
 
 export interface Score {

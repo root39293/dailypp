@@ -1,107 +1,105 @@
 import { redirect } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestEvent } from './$types';
 import { OSU_CLIENT_ID, OSU_CLIENT_SECRET } from '$env/static/private';
 import jwt from 'jsonwebtoken';
-import { connect } from '$lib/server/db';
-import { getRedirectUri } from '$lib/server/config';
+import { UserModel } from '$lib/server/mongoose/models';
 
 export const GET = async ({ url, cookies }: RequestEvent) => {
     const code = url.searchParams.get('code');
-    const redirectUri = getRedirectUri();
-    
-    console.log('Auth Callback - Received code:', code);
     
     if (!code) {
-        console.error('No code received');
-        throw redirect(303, '/');
+        throw new Error('No code provided');
     }
 
     try {
-        console.log('Requesting token with:', {
-            client_id: OSU_CLIENT_ID,
-            redirect_uri: redirectUri
-        });
-
-        // OAuth 토큰 얻기
         const tokenResponse = await fetch('https://osu.ppy.sh/oauth/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(`${OSU_CLIENT_ID}:${OSU_CLIENT_SECRET}`).toString('base64')
+                Accept: 'application/json',
             },
             body: JSON.stringify({
+                client_id: OSU_CLIENT_ID,
+                client_secret: OSU_CLIENT_SECRET,
                 code,
                 grant_type: 'authorization_code',
-                redirect_uri: redirectUri
+                redirect_uri: `${url.origin}/auth/callback`
             })
         });
 
-        const tokenData = await tokenResponse.text();
-        console.log('Token Response:', tokenData);
-
         if (!tokenResponse.ok) {
-            console.error('Token response error:', tokenData);
-            throw new Error('Failed to get token');
+            console.error('Token response error:', await tokenResponse.text());
+            throw redirect(303, '/?error=token_failed');
         }
 
-        const { access_token } = JSON.parse(tokenData);
+        const { access_token } = await tokenResponse.json();
 
-        // 사용자 정보 얻기
         const userResponse = await fetch('https://osu.ppy.sh/api/v2/me', {
             headers: {
                 Authorization: `Bearer ${access_token}`
             }
         });
 
-        const userData = await userResponse.json();
-        console.log('User Data:', userData);
-
         if (!userResponse.ok) {
-            console.error('User response error:', userData);
-            throw new Error('Failed to get user info');
+            console.error('User response error:', await userResponse.text());
+            throw redirect(303, '/?error=user_info_failed');
         }
 
-        // PP 히스토리 기록
-        const db = await connect();
-        await db.ppHistory.insertOne({
-            user_id: userData.id,
-            pp: userData.statistics.pp,
-            recorded_at: new Date()
-        });
+        const userData = await userResponse.json();
 
-        // JWT 생성
+        try {
+            const user = await UserModel.findOneAndUpdate(
+                { osu_id: userData.id.toString() },
+                {
+                    osu_id: userData.id.toString(),
+                    username: userData.username,
+                    pp_raw: userData.statistics?.pp || 0,
+                    last_login: new Date(),
+                    updated_at: new Date()
+                },
+                { 
+                    upsert: true, 
+                    new: true,
+                    setDefaultsOnInsert: true 
+                }
+            );
+            console.log('User saved to MongoDB:', user.toObject());
+        } catch (dbError) {
+            console.error('MongoDB Error:', dbError);
+            throw redirect(303, '/?error=database_error');
+        }
+
         const tokenPayload = {
             id: userData.id.toString(),
             name: userData.username,
             pp_raw: userData.statistics?.pp || 0
         };
-        console.log('Creating JWT with payload:', tokenPayload);
 
         const token = jwt.sign(tokenPayload, OSU_CLIENT_SECRET, { expiresIn: '7d' });
 
-        // JWT를 쿠키에 저장
         cookies.set('jwt', token, {
             path: '/',
             httpOnly: true,
             sameSite: 'lax',
             secure: import.meta.env.PROD,
-            maxAge: 60 * 60 * 24 * 7 // 7일
+            maxAge: 60 * 60 * 24 * 7
         });
 
-        console.log('JWT cookie set successfully');
+        return new Response(null, {
+            status: 303,
+            headers: { Location: '/dashboard' }
+        });
 
-        throw redirect(303, '/dashboard');
     } catch (error) {
         console.error('Auth callback error:', error);
         
-        // JWT가 성공적으로 설정되었는지 확인
-        const token = cookies.get('jwt');
-        if (token) {
-            // JWT가 있다면 정상적으로 로그인된 것이므로 대시보드로 리다이렉트
-            throw redirect(303, '/dashboard');
+        if (error instanceof Response && error.status === 303) {
+            return error;
         }
         
-        // JWT가 없다면 실제로 인증에 실패한 것이므로 에러 표시
-        throw redirect(303, '/?error=auth_failed');
+        return new Response(null, {
+            status: 303,
+            headers: { Location: '/?error=auth_failed' }
+        });
     }
 }; 

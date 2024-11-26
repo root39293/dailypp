@@ -1,10 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { connect } from '$lib/server/db';
+import { connectDB } from '$lib/server/mongoose/connection';
 import { startOfDay, endOfDay } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
 import { osuApi } from '$lib/server/osu-api';
 import { completeChallengeDtoSchema } from '$lib/schemas';
+import { ChallengeModel, PPHistoryModel } from '$lib/server/mongoose/models';
 
 // S 랭크 이상만 인정
 const VALID_RANKS = ['S', 'SH', 'SS', 'SSH'] as const;
@@ -18,11 +19,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 요청 데이터 검증
         const data = completeChallengeDtoSchema.parse(await request.json());
-        const db = await connect();
+        await connectDB();
         
         // 오늘의 챌린지 찾기
         const today = new Date();
-        const challenge = await db.challenges.findOne({
+        const challenge = await ChallengeModel.findOne({
             user_id: locals.user.id,
             date: {
                 $gte: startOfDay(today),
@@ -55,7 +56,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 챌린지 완료 처리
         const completed_at = new Date();
-        const result = await db.challenges.updateOne(
+        const result = await ChallengeModel.updateOne(
             {
                 _id: challenge._id,
                 'challenges.beatmap_id': data.beatmap_id
@@ -75,7 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         // PP 히스토리 업데이트
-        await db.ppHistory.insertOne({
+        await PPHistoryModel.create({
             user_id: locals.user.id,
             pp: recentScore.pp,
             recorded_at: new Date()

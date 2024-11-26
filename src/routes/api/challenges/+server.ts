@@ -1,39 +1,34 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { connect } from '$lib/server/db';
-import { osuApi } from '$lib/server/osu-api';
+import { connectDB } from '$lib/server/mongoose/connection';
 import { startOfDay, endOfDay } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
-import type { Beatmap } from '$lib/types';
-import { z } from 'zod';
-import { type WithoutId } from 'mongodb';
-import type { Challenge } from '$lib/types';
+import { osuApi } from '$lib/server/osu-api';
+import { ChallengeModel } from '$lib/server/mongoose/models';
+import type { ChallengeMap, ChallengeDocument } from '$lib/types';
 
-const DIFFICULTY_FACTOR = {
-    EASY: { MIN: 0.7, MAX: 0.8 },
-    NORMAL: { MIN: 0.8, MAX: 0.9 },
-    HARD: { MIN: 0.9, MAX: 1.0 }
-} as const;
-
-type DifficultyType = keyof typeof DIFFICULTY_FACTOR;
-
-const completeChallengeDtoSchema = z.object({
-    beatmap_id: z.string()
-});
+interface BeatmapData {
+    id: string;
+    title: string;
+    version: string;
+    difficulty_rating: number;
+    bpm: number;
+    total_length: number;
+    creator: string;
+    cover_url: string;
+}
 
 export const GET: RequestHandler = async ({ locals }) => {
-    console.log('GET /api/challenges - Start');
-    
     if (!locals.user) {
-        console.log('GET /api/challenges - Unauthorized');
-        return new Response('Unauthorized', { status: 401 });
+        throw new APIError('Unauthorized', 401);
     }
 
     try {
-        const db = await connect();
-        const today = startOfDay(new Date());
-        
-        const existingChallenge = await db.challenges.findOne({
+        await connectDB();
+        const today = new Date();
+
+        // 오늘의 챌린지 확인
+        const existingChallenge = await ChallengeModel.findOne({
             user_id: locals.user.id,
             date: {
                 $gte: startOfDay(today),
@@ -42,10 +37,8 @@ export const GET: RequestHandler = async ({ locals }) => {
         });
 
         if (existingChallenge) {
-            console.log('Returning existing challenges for today');
-            
-            const challengesWithBeatmaps = await Promise.all(
-                existingChallenge.challenges.map(async (challenge) => {
+            const enrichedChallenges = await Promise.all(
+                existingChallenge.challenges.map(async (challenge: ChallengeMap) => {
                     const beatmap = await osuApi.getBeatmap(challenge.beatmap_id);
                     return {
                         ...challenge,
@@ -54,60 +47,70 @@ export const GET: RequestHandler = async ({ locals }) => {
                 })
             );
 
-            return json({ challenges: challengesWithBeatmaps });
+            return json({ challenges: enrichedChallenges });
         }
 
-        const usedBeatmapsetIds = new Set<string>();
-        
-        const easyBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY') as Beatmap;
-        usedBeatmapsetIds.add(easyBeatmap.beatmapset_id);
+        // 새로운 챌린지 생성
+        const [easyBeatmap, normalBeatmap, hardBeatmap] = await Promise.all([
+            osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY'),
+            osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL'),
+            osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD')
+        ]) as [BeatmapData, BeatmapData, BeatmapData];
 
-        let normalBeatmap: Beatmap;
-        do {
-            normalBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL') as Beatmap;
-        } while (usedBeatmapsetIds.has(normalBeatmap.beatmapset_id));
-        usedBeatmapsetIds.add(normalBeatmap.beatmapset_id);
-        
-        let hardBeatmap: Beatmap;
-        do {
-            hardBeatmap = await osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD') as Beatmap;
-        } while (usedBeatmapsetIds.has(hardBeatmap.beatmapset_id));
-
-        const challenges = [
+        const challenges: ChallengeMap[] = [
             {
                 beatmap_id: easyBeatmap.id,
-                difficulty: 'EASY' as const,
-                completed: false
+                difficulty: 'EASY',
+                completed: false,
+                beatmap: {
+                    title: easyBeatmap.title,
+                    version: easyBeatmap.version,
+                    cover_url: easyBeatmap.cover_url || '',
+                    creator: easyBeatmap.creator,
+                    difficulty_rating: easyBeatmap.difficulty_rating,
+                    bpm: easyBeatmap.bpm,
+                    total_length: easyBeatmap.total_length
+                }
             },
             {
                 beatmap_id: normalBeatmap.id,
-                difficulty: 'NORMAL' as const,
-                completed: false
+                difficulty: 'NORMAL',
+                completed: false,
+                beatmap: {
+                    title: normalBeatmap.title,
+                    version: normalBeatmap.version,
+                    cover_url: normalBeatmap.cover_url || '',
+                    creator: normalBeatmap.creator,
+                    difficulty_rating: normalBeatmap.difficulty_rating,
+                    bpm: normalBeatmap.bpm,
+                    total_length: normalBeatmap.total_length
+                }
             },
             {
                 beatmap_id: hardBeatmap.id,
-                difficulty: 'HARD' as const,
-                completed: false
+                difficulty: 'HARD',
+                completed: false,
+                beatmap: {
+                    title: hardBeatmap.title,
+                    version: hardBeatmap.version,
+                    cover_url: hardBeatmap.cover_url || '',
+                    creator: hardBeatmap.creator,
+                    difficulty_rating: hardBeatmap.difficulty_rating,
+                    bpm: hardBeatmap.bpm,
+                    total_length: hardBeatmap.total_length
+                }
             }
         ];
 
-        const newChallenge: WithoutId<Challenge> = {
+        const newChallenge = await ChallengeModel.create({
             user_id: locals.user.id,
             date: today,
             challenges,
             created_at: new Date(),
             updated_at: new Date()
-        };
+        });
 
-        await db.challenges.insertOne(newChallenge);
-
-        const responseData = challenges.map((challenge, index) => ({
-            ...challenge,
-            beatmap: [easyBeatmap, normalBeatmap, hardBeatmap][index]
-        }));
-
-        console.log('Final challenges:', responseData);
-        return json({ challenges: responseData });
+        return json({ challenges });
 
     } catch (error) {
         console.error('GET /api/challenges - Error:', error);
@@ -121,11 +124,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
+        await connectDB();
         const body = await request.json();
-        const { beatmap_id } = completeChallengeDtoSchema.parse(body);
+        const { beatmap_id } = body;
 
-        const db = await connect();
-        const result = await db.challenges.updateOne(
+        const result = await ChallengeModel.updateOne(
             {
                 user_id: locals.user.id,
                 date: {

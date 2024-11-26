@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { connect } from '$lib/server/db';
+import { connectDB } from '$lib/server/mongoose/connection';
 import { subDays } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
 import { osuApi } from '$lib/server/osu-api';
+import { ChallengeModel } from '$lib/server/mongoose/models';
+import type { ChallengeMap } from '$lib/types';
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
@@ -11,17 +13,19 @@ export const GET: RequestHandler = async ({ locals }) => {
     }
 
     try {
-        const db = await connect();
+        await connectDB();
         const today = new Date();
         const thirtyDaysAgo = subDays(today, 30);
 
-        const challenges = await db.challenges.find({
+        const challenges = await ChallengeModel.find({
             user_id: locals.user.id,
             date: { $gte: thirtyDaysAgo }
-        }).sort({ date: -1 }).toArray();
+        })
+        .sort({ date: -1 })
+        .lean();
 
         const history = await Promise.all(challenges.map(async (challenge) => {
-            const enrichedChallenges = await Promise.all(challenge.challenges.map(async (c) => {
+            const enrichedChallenges = await Promise.all(challenge.challenges.map(async (c: ChallengeMap) => {
                 try {
                     const beatmap = await osuApi.getBeatmap(c.beatmap_id);
                     return {
