@@ -50,7 +50,26 @@ export const ppHistorySchema = new mongoose.Schema<PPHistoryDocument>({
     recorded_at: { type: Date, required: true }
 });
 
+export const beatmapFeedbackSchema = new mongoose.Schema({
+    user_id: { type: String, required: true },
+    beatmap_id: { type: String, required: true },
+    pattern_type: { 
+        type: String, 
+        enum: ['STREAM', 'JUMP', 'TECHNICAL', 'SIMPLE_RHYTHM'],
+        required: true 
+    },
+    difficulty_feel: {
+        type: String,
+        enum: ['TOO_EASY', 'JUST_RIGHT', 'TOO_HARD'],
+        required: true
+    },
+    created_at: { type: Date, default: Date.now }
+});
+
 // 인덱스 설정
 userSchema.index({ osu_id: 1 });
 challengeSchema.index({ user_id: 1, date: 1 });
 ppHistorySchema.index({ user_id: 1, recorded_at: 1 });
+beatmapFeedbackSchema.index({ user_id: 1, beatmap_id: 1 });
+beatmapFeedbackSchema.index({ pattern_type: 1 });
+beatmapFeedbackSchema.index({ difficulty_feel: 1 });

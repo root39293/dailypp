@@ -6,9 +6,23 @@ import { APIError, errorResponse } from '$lib/server/errors';
 import { osuApi } from '$lib/server/osu-api';
 import { completeChallengeDtoSchema } from '$lib/schemas';
 import { ChallengeModel, PPHistoryModel } from '$lib/server/mongoose/models';
+import type { User } from '$lib/types';
+import type { JWTPayload, OsuRank, Difficulty, ChallengeDocument } from '$lib/types';
 
-// S 랭크 이상만 인정
-const VALID_RANKS = ['S', 'SH', 'SS', 'SSH'] as const;
+// 랭크 값 매핑
+const RANK_VALUES: Record<OsuRank, number> = {
+    'C': 1,
+    'B': 2,
+    'A': 3,
+    'S': 4,
+    'SH': 5,
+    'ANY': 0
+} as const;
+
+// 랭크 타입 가드 함수 수정
+function isValidOsuRank(rank: string): rank is OsuRank {
+    return ['C', 'B', 'A', 'S', 'SH', 'ANY'].includes(rank);
+}
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
@@ -16,6 +30,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (!locals.user) {
             throw new APIError('Unauthorized', 401);
         }
+
+        const user = locals.user as JWTPayload;
 
         // 요청 데이터 검증
         const data = completeChallengeDtoSchema.parse(await request.json());
@@ -30,9 +46,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 $lte: endOfDay(today)
             },
             'challenges.beatmap_id': data.beatmap_id
-        });
+        }).lean() as unknown as ChallengeDocument;
 
         if (!challenge) {
+            throw new APIError('Challenge not found', 404);
+        }
+
+        // 현재 챌린지 찾기
+        const currentChallenge = challenge.challenges.find(
+            c => c.beatmap_id === data.beatmap_id
+        );
+
+        if (!currentChallenge) {
             throw new APIError('Challenge not found', 404);
         }
 
@@ -40,18 +65,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const recentScore = await osuApi.getUserRecentScore(locals.user.id, data.beatmap_id);
         
         if (!recentScore) {
-            return json({
-                verified: false,
-                message: '최근 24시간 이내의 클리어 기록을 찾을 수 없습니다'
-            });
+            throw new APIError('최근 플레이 기록을 찾을 수 없습니다', 404);
         }
 
-        // 랭크 검증
-        if (!VALID_RANKS.includes(recentScore.rank as typeof VALID_RANKS[number])) {
-            return json({
-                verified: false,
-                message: '적어도 S 랭크 이상을 획득해야 합니다'
-            });
+        // 사용자의 목표 랭크와 비교
+        const targetRank = user.settings.targetRanks[currentChallenge.difficulty];
+        
+        if (targetRank !== 'ANY') {
+            // 타입 안전성 확보
+            if (!isValidOsuRank(recentScore.rank) || !isValidOsuRank(targetRank)) {
+                throw new APIError('Invalid rank value', 500);
+            }
+
+            const achievedRankValue = RANK_VALUES[recentScore.rank];
+            const targetRankValue = RANK_VALUES[targetRank];
+            
+            if (achievedRankValue < targetRankValue) {
+                throw new APIError(`${targetRank} 랭크 이상을 달성해야 합니다`, 400);
+            }
         }
 
         // 챌린지 완료 처리

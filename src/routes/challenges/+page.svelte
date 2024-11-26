@@ -4,11 +4,14 @@
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import ErrorAlert from '$lib/components/ErrorAlert.svelte';
   import ChallengeCard from '$lib/components/ChallengeCard.svelte';
+  import ChallengeSettings from '$lib/components/ChallengeSettings.svelte';
+  import { DEFAULT_USER_SETTINGS } from '$lib/types';
 
   let challenges: any[] = [];
   let loading = true;
   let error: string | null = null;
   let completing: string | null = null;
+  let showSettings = false;
 
   async function fetchChallenges() {
     if (!$page.data.user) {
@@ -56,6 +59,10 @@
     }
   }
 
+  function handleCloseSettings() {
+    showSettings = false;
+  }
+
   fetchChallenges();
 </script>
 
@@ -69,7 +76,7 @@
             <span class="text-osu-pink">Daily</span> Challenges
           </h1>
           <p class="mt-3 text-lg text-gray-400 max-w-2xl">
-            매일 새로운 비트맵으로 자신의 실력을 시험해보세요. 난이도별 3개의 도전과제가 기다리고 있습니다.
+            매�� 새로운 비트맵으로 자신의 실력을 시험해보세요. 난이도별 3개의 도전과제가 기다리고 있습니다.
           </p>
         </div>
         
@@ -112,21 +119,43 @@
     {:else}
       <!-- 난이도 필터 -->
       <div class="flex items-center justify-between mb-8">
-        <div class="flex gap-2">
-          <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-green-500/20 text-green-400">
-            Easy
+        <div class="flex items-center gap-4">
+          <div class="flex gap-2">
+            <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-green-500/20 text-green-400">
+              Easy
+            </div>
+            <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-400">
+              Normal
+            </div>
+            <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-red-500/20 text-red-400">
+              Hard
+            </div>
           </div>
-          <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-400">
-            Normal
-          </div>
-          <div class="px-4 py-1.5 rounded-full text-sm font-medium bg-red-500/20 text-red-400">
-            Hard
-          </div>
+          
+          <!-- 설정 버튼 개선 -->
+          <button 
+            class="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-dark-200 hover:bg-dark-300 
+                   border border-gray-800 text-gray-400 hover:text-white transition-all"
+            on:click={() => showSettings = true}
+          >
+            <i class="fas fa-star text-sm"></i>
+            <span class="text-sm font-medium">목표 설정</span>
+            <i class="fas fa-chevron-right text-xs ml-1"></i>
+          </button>
         </div>
+        
         <div class="text-sm text-gray-400">
           매일 00:00 KST에 갱신
         </div>
       </div>
+
+      <!-- 설정 모달 -->
+      {#if showSettings}
+        <ChallengeSettings 
+          settings={$page.data.user?.settings || DEFAULT_USER_SETTINGS}
+          onClose={handleCloseSettings}
+        />
+      {/if}
 
       <!-- 챌린지 카드 그리드 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

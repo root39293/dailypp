@@ -1,5 +1,6 @@
 <script lang="ts">
   import ErrorAlert from './ErrorAlert.svelte';
+  import BeatmapFeedbackModal from './BeatmapFeedbackModal.svelte';
   
   export let challenge: {
     beatmap: {
@@ -28,6 +29,8 @@
   export let completing: string | null;
   let errorMessage: string | null = null;
   export let isDemo = false;
+
+  let showFeedbackModal = false;
 
   function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -70,6 +73,7 @@
         challenge.completed = true;
         challenge.completed_at = result.completed_at;
         challenge.score = result.score;
+        showFeedbackModal = true;
       } else {
         throw new Error('최근 24시간 이내의 클리어 기록을 찾을 수 없습니다');
       }
@@ -85,6 +89,32 @@
       completing = null;
     }
   };
+
+  async function handleFeedbackSubmit(feedback: {
+    pattern_type: 'STREAM' | 'JUMP' | 'TECHNICAL' | 'SIMPLE_RHYTHM',
+    difficulty_feel: 'TOO_EASY' | 'JUST_RIGHT' | 'TOO_HARD'
+  }) {
+    try {
+      const response = await fetch('/api/challenges/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          beatmap_id: challenge.beatmap_id,
+          ...feedback
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback');
+      }
+
+      showFeedbackModal = false;
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
+  }
 </script>
 
 <div class="relative bg-dark-300 rounded-2xl overflow-hidden">
@@ -261,4 +291,10 @@
       </div>
     {/if}
   </div>
-</div> 
+</div>
+
+<BeatmapFeedbackModal
+  show={showFeedbackModal}
+  onSubmit={handleFeedbackSubmit}
+  onClose={() => showFeedbackModal = false}
+/> 

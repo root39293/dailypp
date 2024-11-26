@@ -5,7 +5,7 @@ import { startOfDay, endOfDay } from 'date-fns';
 import { APIError, errorResponse } from '$lib/server/errors';
 import { osuApi } from '$lib/server/osu-api';
 import { ChallengeModel } from '$lib/server/mongoose/models';
-import type { ChallengeMap, ChallengeDocument } from '$lib/types';
+import type { ChallengeMap } from '$lib/types';
 
 interface BeatmapData {
     id: string;
@@ -18,16 +18,36 @@ interface BeatmapData {
     cover_url: string;
 }
 
-interface ChallengeWithChallenges {
+interface Challenge {
+    beatmap_id: string;
+    difficulty: 'EASY' | 'NORMAL' | 'HARD';
+    completed: boolean;
+    completed_at?: Date;
+    beatmap?: {
+        title: string;
+        version: string;
+        cover_url: string;
+        creator: string;
+        difficulty_rating: number;
+        bpm: number;
+        total_length: number;
+    };
+}
+
+interface ChallengeDocument {
     _id: string;
     user_id: string;
     date: Date;
-    challenges: ChallengeMap[];
+    challenges: Challenge[];
     created_at: Date;
     updated_at: Date;
+    __v: number;
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
+    console.log('GET /api/challenges - locals:', locals);
+    console.log('GET /api/challenges - user:', locals.user);
+
     if (!locals.user) {
         throw new APIError('Unauthorized', 401);
     }
@@ -43,81 +63,96 @@ export const GET: RequestHandler = async ({ locals }) => {
                 $gte: startOfDay(today),
                 $lte: endOfDay(today)
             }
-        }).lean() as ChallengeWithChallenges | null;
+        }).lean() as ChallengeDocument | null;
 
         if (existingChallenge) {
-            const beatmapIds = existingChallenge.challenges.map(c => c.beatmap_id);
-            const beatmaps = await osuApi.getBeatmaps(beatmapIds);
+            try {
+                const beatmapIds = existingChallenge.challenges.map((c: Challenge) => c.beatmap_id);
+                const beatmaps = await osuApi.getBeatmaps(beatmapIds);
 
-            const enrichedChallenges = existingChallenge.challenges.map(challenge => ({
-                ...challenge,
-                beatmap: beatmaps[challenge.beatmap_id]
-            }));
+                const enrichedChallenges = existingChallenge.challenges.map((challenge: Challenge) => ({
+                    ...challenge,
+                    beatmap: beatmaps[challenge.beatmap_id] || null
+                }));
 
-            return json({ challenges: enrichedChallenges });
+                return json({ challenges: enrichedChallenges });
+            } catch (error) {
+                console.error('Error fetching beatmaps:', error);
+                return json({ challenges: existingChallenge.challenges });
+            }
         }
 
         // 새로운 챌린지 생성
-        const [easyBeatmap, normalBeatmap, hardBeatmap] = await Promise.all([
-            osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY'),
-            osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL'),
-            osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD')
-        ]) as [BeatmapData, BeatmapData, BeatmapData];
+        try {
+            const [easyBeatmap, normalBeatmap, hardBeatmap] = await Promise.all([
+                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'EASY'),
+                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'NORMAL'),
+                osuApi.findSuitableBeatmap(locals.user.pp_raw, 'HARD')
+            ]) as [BeatmapData, BeatmapData, BeatmapData];
 
-        const challenges: ChallengeMap[] = [
-            {
-                beatmap_id: easyBeatmap.id,
-                difficulty: 'EASY',
-                completed: false,
-                beatmap: {
-                    title: easyBeatmap.title,
-                    version: easyBeatmap.version,
-                    cover_url: easyBeatmap.cover_url || '',
-                    creator: easyBeatmap.creator,
-                    difficulty_rating: easyBeatmap.difficulty_rating,
-                    bpm: easyBeatmap.bpm,
-                    total_length: easyBeatmap.total_length
-                }
-            },
-            {
-                beatmap_id: normalBeatmap.id,
-                difficulty: 'NORMAL',
-                completed: false,
-                beatmap: {
-                    title: normalBeatmap.title,
-                    version: normalBeatmap.version,
-                    cover_url: normalBeatmap.cover_url || '',
-                    creator: normalBeatmap.creator,
-                    difficulty_rating: normalBeatmap.difficulty_rating,
-                    bpm: normalBeatmap.bpm,
-                    total_length: normalBeatmap.total_length
-                }
-            },
-            {
-                beatmap_id: hardBeatmap.id,
-                difficulty: 'HARD',
-                completed: false,
-                beatmap: {
-                    title: hardBeatmap.title,
-                    version: hardBeatmap.version,
-                    cover_url: hardBeatmap.cover_url || '',
-                    creator: hardBeatmap.creator,
-                    difficulty_rating: hardBeatmap.difficulty_rating,
-                    bpm: hardBeatmap.bpm,
-                    total_length: hardBeatmap.total_length
-                }
+            if (!easyBeatmap?.id || !normalBeatmap?.id || !hardBeatmap?.id) {
+                throw new Error('Failed to fetch suitable beatmaps');
             }
-        ];
 
-        const newChallenge = await ChallengeModel.create({
-            user_id: locals.user.id,
-            date: today,
-            challenges,
-            created_at: new Date(),
-            updated_at: new Date()
-        });
+            const challenges: ChallengeMap[] = [
+                {
+                    beatmap_id: easyBeatmap.id,
+                    difficulty: 'EASY',
+                    completed: false,
+                    beatmap: {
+                        title: easyBeatmap.title,
+                        version: easyBeatmap.version,
+                        cover_url: easyBeatmap.cover_url || '',
+                        creator: easyBeatmap.creator,
+                        difficulty_rating: easyBeatmap.difficulty_rating,
+                        bpm: easyBeatmap.bpm,
+                        total_length: easyBeatmap.total_length
+                    }
+                },
+                {
+                    beatmap_id: normalBeatmap.id,
+                    difficulty: 'NORMAL',
+                    completed: false,
+                    beatmap: {
+                        title: normalBeatmap.title,
+                        version: normalBeatmap.version,
+                        cover_url: normalBeatmap.cover_url || '',
+                        creator: normalBeatmap.creator,
+                        difficulty_rating: normalBeatmap.difficulty_rating,
+                        bpm: normalBeatmap.bpm,
+                        total_length: normalBeatmap.total_length
+                    }
+                },
+                {
+                    beatmap_id: hardBeatmap.id,
+                    difficulty: 'HARD',
+                    completed: false,
+                    beatmap: {
+                        title: hardBeatmap.title,
+                        version: hardBeatmap.version,
+                        cover_url: hardBeatmap.cover_url || '',
+                        creator: hardBeatmap.creator,
+                        difficulty_rating: hardBeatmap.difficulty_rating,
+                        bpm: hardBeatmap.bpm,
+                        total_length: hardBeatmap.total_length
+                    }
+                }
+            ];
 
-        return json({ challenges });
+            const newChallenge = await ChallengeModel.create({
+                user_id: locals.user.id,
+                date: today,
+                challenges,
+                created_at: new Date(),
+                updated_at: new Date()
+            });
+
+            return json({ challenges });
+
+        } catch (error) {
+            console.error('Error creating new challenges:', error);
+            throw new APIError('Failed to create new challenges', 500);
+        }
 
     } catch (error) {
         console.error('GET /api/challenges - Error:', error);

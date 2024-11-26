@@ -37,3 +37,11 @@ export const challengeSchema = z.object({
 export const completeChallengeDtoSchema = z.object({
     beatmap_id: z.string()
 });
+
+export const settingsSchema = z.object({
+    targetRanks: z.object({
+        EASY: z.enum(['ANY', 'C', 'B', 'A', 'S', 'SH']),
+        NORMAL: z.enum(['ANY', 'C', 'B', 'A', 'S', 'SH']),
+        HARD: z.enum(['ANY', 'C', 'B', 'A', 'S', 'SH'])
+    })
+});

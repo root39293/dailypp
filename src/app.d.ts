@@ -7,13 +7,27 @@ declare global {
                 id: string;
                 name: string;
                 pp_raw: number;
-            };
+                settings: {
+                    targetRanks: {
+                        EASY: string;
+                        NORMAL: string;
+                        HARD: string;
+                    }
+                }
+            }
         }
         interface PageData {
             user: {
                 id: string;
                 name: string;
                 pp_raw: number;
+                settings: {
+                    targetRanks: {
+                        EASY: string;
+                        NORMAL: string;
+                        HARD: string;
+                    }
+                }
             } | null;
         }
     }

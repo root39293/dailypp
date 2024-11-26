@@ -2,7 +2,6 @@
   import { fly, fade } from 'svelte/transition';
   import ChallengeCard from '$lib/components/ChallengeCard.svelte';
   import Toast from '$lib/components/Toast.svelte';
-  import type { Difficulty } from '$lib/types';
 
   const demoUser = {
     name: "게스트",
@@ -20,7 +19,7 @@
         bpm: 150,
         total_length: 229,
       },
-      difficulty: 'EASY' as Difficulty,
+      difficulty: 'EASY',
       beatmap_id: "1988753",
       completed: false
     },
@@ -34,7 +33,7 @@
         bpm: 200,
         total_length: 161,
       },
-      difficulty: 'NORMAL' as Difficulty,
+      difficulty: 'NORMAL',
       beatmap_id: "766475",
       completed: false
     },
@@ -48,7 +47,7 @@
         bpm: 190,
         total_length: 128,
       },
-      difficulty: 'HARD' as Difficulty,
+      difficulty: 'HARD',
       beatmap_id: "1091249",
       completed: true,
       completed_at: "2024-01-20T12:00:00Z",
@@ -61,7 +60,7 @@
         pp: 168
       }
     }
-  ];
+  ] as const;
 
   let showToast = false;
   

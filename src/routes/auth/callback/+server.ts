@@ -3,6 +3,7 @@ import type { RequestEvent } from './$types';
 import { OSU_CLIENT_ID, OSU_CLIENT_SECRET } from '$env/static/private';
 import jwt from 'jsonwebtoken';
 import { UserModel } from '$lib/server/mongoose/models';
+import { DEFAULT_USER_SETTINGS } from '$lib/types';
 
 export const GET = async ({ url, cookies }: RequestEvent) => {
     const code = url.searchParams.get('code');
@@ -54,6 +55,7 @@ export const GET = async ({ url, cookies }: RequestEvent) => {
                     osu_id: userData.id.toString(),
                     username: userData.username,
                     pp_raw: userData.statistics?.pp || 0,
+                    settings: DEFAULT_USER_SETTINGS,
                     last_login: new Date(),
                     updated_at: new Date()
                 },
