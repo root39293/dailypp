@@ -10,8 +10,4 @@
   });
 </script>
 
-{#if !$page.data.user}
-  <LandingPage {isLoaded} />
-{:else}
-  <Dashboard user={$page.data.user} />
-{/if}
+<LandingPage {isLoaded} user={$page.data.user} />

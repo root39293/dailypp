@@ -90,16 +90,15 @@ export const GET = async ({ url, cookies }: RequestEvent) => {
 
         console.log('JWT cookie set successfully');
 
-        // 홈으로 리다이렉트
-        throw redirect(303, '/');
+        throw redirect(303, '/dashboard');
     } catch (error) {
         console.error('Auth callback error:', error);
         
         // JWT가 성공적으로 설정되었는지 확인
         const token = cookies.get('jwt');
         if (token) {
-            // JWT가 있다면 정상적으로 로그인된 것이므로 에러 없이 리다이렉트
-            throw redirect(303, '/');
+            // JWT가 있다면 정상적으로 로그인된 것이므로 대시보드로 리다이렉트
+            throw redirect(303, '/dashboard');
         }
         
         // JWT가 없다면 실제로 인증에 실패한 것이므로 에러 표시

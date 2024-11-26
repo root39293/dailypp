@@ -2,6 +2,7 @@
   import { fly, fade } from 'svelte/transition';
   import Footer from './Footer.svelte';
   export let isLoaded: boolean;
+  export let user: App.PageData['user'];
 
   const features = [
     { title: '랜덤 비트맵', desc: 'PP 기반 난이도별 비트맵 추천' },
@@ -98,29 +99,35 @@
             {/each}
           </div>
 
-          <div 
-            class="pt-4 flex gap-4"
-            in:fly={{ y: 50, duration: 1000, delay: 800 }}
-          >
-            <form action="/auth/signin" method="POST">
-              <button
-                type="submit"
-                class="group relative px-8 py-4 bg-osu-pink text-white rounded-lg text-lg font-medium 
-                       transition-all hover:bg-opacity-90 hover:translate-y-[-2px] hover:shadow-lg 
-                       hover:shadow-osu-pink/20"
+          <div class="mt-8 flex items-center gap-4">
+            {#if user}
+              <a
+                href="/dashboard"
+                class="inline-flex items-center px-6 py-3 rounded-xl bg-osu-pink text-white font-medium hover:bg-osu-pink/90 transition-colors"
               >
-                osu!로 시작하기
-              </button>
-            </form>
+                대시보드로 이동
+                <i class="fas fa-arrow-right ml-2"></i>
+              </a>
+            {:else}
+              <form action="/auth/signin" method="POST">
+                <button
+                  type="submit"
+                  class="inline-flex items-center px-6 py-3 rounded-xl bg-osu-pink text-white font-medium hover:bg-osu-pink/90 transition-colors"
+                >
+                  osu!로 로그인
+                  <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+              </form>
 
-            <a
-              href="/demo"
-              class="group relative px-8 py-4 bg-dark-200 text-gray-300 rounded-lg text-lg font-medium 
-                     transition-all hover:bg-dark-100 hover:text-white hover:translate-y-[-2px]
-                     border border-gray-700/50"
-            >
-              둘러보기
-            </a>
+              <a
+                href="/demo"
+                class="inline-flex items-center px-6 py-3 rounded-xl bg-dark-200 text-gray-300 font-medium 
+                       hover:bg-dark-200/80 hover:text-white transition-colors"
+              >
+                둘러보기
+                <i class="fas fa-external-link-alt ml-2"></i>
+              </a>
+            {/if}
           </div>
         {/if}
       </div>
@@ -221,11 +228,6 @@
         </div>
       {/if}
     </div>
-  </div>
-
-  <!-- Footer -->
-  <div class="relative z-10">
-    <Footer />
   </div>
 </div>
 
