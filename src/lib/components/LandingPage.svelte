@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
-  import Footer from './Footer.svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { onMount } from 'svelte';
   export let isLoaded: boolean;
   export let user: App.PageData['user'];
 
@@ -32,18 +33,113 @@
   ];
 
   let activeDemoIndex = 0;
+  let demoInterval: NodeJS.Timeout;
   
   function cycleDemoMaps() {
     activeDemoIndex = (activeDemoIndex + 1) % demoMaps.length;
   }
 
-  if (typeof window !== 'undefined') {
-    setInterval(cycleDemoMaps, 3000);
-  }
-
   function handleImageError(index: number) {
     console.log(`Image ${index} load failed`);
   }
+
+  function smoothTransition(node: HTMLElement, { 
+    delay = 0,
+    duration = 2000
+  } = {}) {
+    return {
+      delay,
+      duration,
+      css: (t: number) => {
+        const eased = cubicOut(t);
+        return `
+          opacity: ${t};
+          transform: scale(${0.98 + (0.02 * eased)});
+          filter: brightness(${0.5 + (0.5 * eased)});
+        `;
+      }
+    };
+  }
+
+  const images = Array.from({ length: 43 }, (_, i) => `/images/${i + 1}.jpg`);
+
+  function getRandomImage(excludeImages: string[]): string {
+    let newImage;
+    do {
+      newImage = images[Math.floor(Math.random() * images.length)];
+    } while (excludeImages.includes(newImage));
+    return newImage;
+  }
+
+  function preloadImage(src: string): Promise<void> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.src = src;
+    });
+  }
+
+  async function transitionImage(position: 'main' | 'right' | 'left') {
+    if (currentImages[position].transitioning) return;
+    
+    currentImages[position].transitioning = true;
+    
+    const usedImages = [
+      currentImages.main.src,
+      currentImages.right.src,
+      currentImages.left.src
+    ];
+    
+    const newSrc = getRandomImage(usedImages);
+    
+    await preloadImage(newSrc);
+    
+    currentImages[position] = {
+      src: newSrc,
+      transitioning: false
+    };
+    currentImages = currentImages;
+  }
+
+  // 초기 랜덤 이미지 선택 함수도 수정
+  function getInitialRandomImages() {
+    const selectedImages: string[] = [];
+    const positions = ['main', 'right', 'left'];
+    
+    positions.forEach(() => {
+      selectedImages.push(getRandomImage(selectedImages));
+    });
+    
+    return {
+      main: { src: selectedImages[0], transitioning: false },
+      right: { src: selectedImages[1], transitioning: false },
+      left: { src: selectedImages[2], transitioning: false }
+    };
+  }
+
+  let currentImages = getInitialRandomImages();
+
+  async function cycleImages() {
+    await transitionImage('main');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    await transitionImage('right');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    await transitionImage('left');
+    await new Promise(resolve => setTimeout(resolve, 4000));
+  }
+
+  let cycleInterval: NodeJS.Timeout;
+  
+  onMount(() => {
+    cycleInterval = setInterval(cycleImages, 15000);
+    demoInterval = setInterval(cycleDemoMaps, 12000);
+    cycleImages();
+    
+    return () => {
+      if (cycleInterval) clearInterval(cycleInterval);
+      if (demoInterval) clearInterval(demoInterval);
+    };
+  });
 </script>
 
 <div class="relative min-h-screen bg-dark-300 flex flex-col">
@@ -143,30 +239,48 @@
             <!-- 장식용 이미지들 -->
             <div class="absolute inset-0 z-0">
               <!-- 메인 이미지 -->
-              <div class="absolute -top-20 -right-20 w-[700px] rotate-3">
-                <img 
-                  src="/images/1.jpg" 
-                  alt="osu! 일러스트 1" 
-                  class="w-full h-auto"
-                />
+              <div class="absolute -top-20 -right-20 w-[700px] h-[400px] rotate-3">
+                <div class="relative w-full h-full">
+                  {#key currentImages.main.src}
+                    <img 
+                      src={currentImages.main.src}
+                      alt="osu! 일러스트" 
+                      class="absolute inset-0 w-full h-full object-cover"
+                      transition:smoothTransition
+                      on:error={() => handleImageError(0)}
+                    />
+                  {/key}
+                </div>
               </div>
 
               <!-- 우측 하단 이미지 -->
-              <div class="absolute bottom-0 right-0 w-[500px] -rotate-6 translate-y-20 translate-x-32">
-                <img 
-                  src="/images/2.jpg" 
-                  alt="osu! 일러스트 2" 
-                  class="w-full h-auto"
-                />
+              <div class="absolute bottom-0 right-0 w-[500px] h-[300px] -rotate-6 translate-y-20 translate-x-32">
+                <div class="relative w-full h-full">
+                  {#key currentImages.right.src}
+                    <img 
+                      src={currentImages.right.src}
+                      alt="osu! 일러스트" 
+                      class="absolute inset-0 w-full h-full object-cover"
+                      transition:smoothTransition
+                      on:error={() => handleImageError(1)}
+                    />
+                  {/key}
+                </div>
               </div>
 
               <!-- 좌측 하단 이미지 -->
-              <div class="absolute bottom-0 left-0 w-[400px] rotate-6 translate-y-16 translate-x-8">
-                <img 
-                  src="/images/3.jpg" 
-                  alt="osu! 일러스트 3" 
-                  class="w-full h-auto"
-                />
+              <div class="absolute bottom-0 left-0 w-[400px] h-[250px] rotate-6 translate-y-16 translate-x-8">
+                <div class="relative w-full h-full">
+                  {#key currentImages.left.src}
+                    <img 
+                      src={currentImages.left.src}
+                      alt="osu! 일러스트" 
+                      class="absolute inset-0 w-full h-full object-cover"
+                      transition:smoothTransition
+                      on:error={() => handleImageError(2)}
+                    />
+                  {/key}
+                </div>
               </div>
             </div>
 
@@ -181,7 +295,7 @@
                 {#key activeDemoIndex}
                   <div 
                     class="bg-dark-200/80 rounded-lg p-6 transition-all hover:bg-dark-200/90"
-                    in:fade={{ duration: 300 }}
+                    in:fade={{ duration: 2000 }}
                   >
                     <div class="flex items-center justify-between gap-4">
                       <div class="text-left flex-1">
