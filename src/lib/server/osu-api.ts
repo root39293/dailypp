@@ -64,7 +64,6 @@ const DEFAULT_BEATMAP = {
     cover_url: 'https://osu.ppy.sh/images/layout/beatmaps/default-bg@2x.jpg'
 };
 
-
 interface BeatmapsetSearchResponse {
     beatmapsets: Beatmapset[];
 }
@@ -125,7 +124,7 @@ function calculateDifficultyRange(pp: number, stableTopPlayStars: number, diffic
     const offsets = {
         EASY: -1.5,
         NORMAL: -0.75,
-        HARD: 0.25
+        HARD: 0
     };
     const margin = 0.25;
 
@@ -136,7 +135,7 @@ function calculateDifficultyRange(pp: number, stableTopPlayStars: number, diffic
     };
 }
 
-// 최근 선택된 비트맵셋 관리를 위한 유틸리티 함수 추가
+// 최근 선택된 비트맵셋 관리를 위한 유틸리티 함수
 function addRecentBeatmapset(beatmapsetId: string) {
     recentlySelectedBeatmapsetIds.add(beatmapsetId);
     // 최대 2개만 저장 (EASY, NORMAL이 선택되었을 때 HARD를 위해)
@@ -299,17 +298,49 @@ export const osuApi = {
             const difficultyRange = calculateDifficultyRange(userPP, stableTopPlayStars, difficulty);
             console.log(`Calculated difficulty range: ${difficultyRange.min.toFixed(2)} - ${difficultyRange.max.toFixed(2)}`);
 
-            const searchParams = new URLSearchParams({
-                mode: 'osu',
-                s: 'ranked',
-                sort: Math.random() > 0.3 ? 'relevance' : 'popularity',
+            // 검색 기준 다양화
+            const searchCriteria = [
+                { sort: 'popularity_desc' },    // 인기도 높은 순
+                { sort: 'difficulty_desc' },    // 어려운 순
+                { sort: 'difficulty_asc' },     // 쉬운 순
+                { sort: 'plays_desc' },         // 플레이 수 높은 순
+                { sort: 'random' }              // 랜덤
+            ];
 
-                sort_desc: Math.random() > 0.5 ? '1' : '0',
-                min_difficulty: difficultyRange.min.toString(),
-                max_difficulty: difficultyRange.max.toString(),
-                min_length: '30',
-                max_length: '300',
-            });
+            // 맵 길이 범위 다양화
+            const lengthRanges = [
+                { min_length: '60', max_length: '120' },   // 짧은 맵
+                { min_length: '120', max_length: '180' },  // 중간 길이
+                { min_length: '180', max_length: '300' },  // 긴 맵
+            ];
+
+            // 랜덤하게 검색 기준 선택
+            const selectedCriteria = searchCriteria[Math.floor(Math.random() * searchCriteria.length)];
+            const selectedLengthRange = lengthRanges[Math.floor(Math.random() * lengthRanges.length)];
+
+            const searchParams = new URLSearchParams();
+            searchParams.append('mode', 'osu');
+            searchParams.append('s', 'ranked');
+            searchParams.append('sort', selectedCriteria.sort);
+            searchParams.append('min_difficulty', difficultyRange.min.toString());
+            searchParams.append('max_difficulty', difficultyRange.max.toString());
+        
+            
+            searchParams.append('min_length', selectedLengthRange.min_length);
+            searchParams.append('max_length', selectedLengthRange.max_length);
+
+            // 장르나 언어 필터 랜덤 적용 (30% 확률)
+            if (Math.random() < 0.3) {
+                const genres = ['video-game', 'anime', 'rock', 'pop', 'electronic'];
+                searchParams.append('g', genres[Math.floor(Math.random() * genres.length)]);
+            }
+
+            // 맵 연도 필터 랜덤 적용 (20% 확률)
+            if (Math.random() < 0.2) {
+                const currentYear = new Date().getFullYear();
+                const randomYear = Math.floor(Math.random() * (currentYear - 2007)) + 2007;
+                searchParams.append('q', `created=${randomYear}`);
+            }
 
             const token = await getToken();
             const response = await fetch(`https://osu.ppy.sh/api/v2/beatmapsets/search?${searchParams}`, {
@@ -337,12 +368,11 @@ export const osuApi = {
                             map.mode === 'osu' &&
                             map.difficulty_rating >= difficultyRange.min &&
                             map.difficulty_rating <= difficultyRange.max &&
-                            map.status === 'ranked' &&
-                            map.total_length <= 300 
+                            map.status === 'ranked'
                         )
                         .map((map: any) => ({
                             id: map.id.toString(),
-                            beatmapset_id: set.id.toString(), // 비트맵셋 ID 추가
+                            beatmapset_id: set.id.toString(),
                             title: set.title,
                             version: map.version,
                             difficulty_rating: map.difficulty_rating,
@@ -350,27 +380,34 @@ export const osuApi = {
                             total_length: map.total_length,
                             creator: set.creator,
                             cover_url: set.covers?.cover || set.covers?.['cover@2x'] || '',
-                            status: 'ranked'
+                            status: 'ranked',
+                            genre: set.genre,
+                            language: set.language
                         }))
                 );
 
             console.log(`Found ${suitableMaps.length} suitable ranked maps (excluding recent selections)`);
+            console.log('Search criteria used:', {
+                ...selectedCriteria,
+                ...selectedLengthRange
+            });
 
             if (!suitableMaps.length) {
                 console.log('No suitable ranked maps found, returning default');
-                recentlySelectedBeatmapsetIds.clear(); // 적절한 맵을 찾지 못한 경우 히스토리 초기화
+                recentlySelectedBeatmapsetIds.clear();
                 return DEFAULT_BEATMAP;
             }
 
-            const selectedMap = suitableMaps[Math.floor(Math.random() * suitableMaps.length)];
-            addRecentBeatmapset(selectedMap.beatmapset_id); // 선택된 비트맵셋 ID 저장
+            // 맵 선택 시 랜덤성 증가 - 상위 20개 중에서 랜덤 선택
+            const selectedMap = suitableMaps[Math.floor(Math.random() * Math.min(suitableMaps.length, 20))];
+            addRecentBeatmapset(selectedMap.beatmapset_id);
 
-            console.log(`Selected beatmapset ID: ${selectedMap.beatmapset_id}, Recent selections: ${[...recentlySelectedBeatmapsetIds]}`);
+            console.log(`Selected beatmap: ${selectedMap.title} (${selectedMap.version}), BPM: ${selectedMap.bpm}, Length: ${selectedMap.total_length}s`);
             return selectedMap;
 
         } catch (error) {
             console.error('Error in findSuitableBeatmap:', error);
-            recentlySelectedBeatmapsetIds.clear(); // 에러 발생 시 히스토리 초기화
+            recentlySelectedBeatmapsetIds.clear();
             return DEFAULT_BEATMAP;
         }
     }
