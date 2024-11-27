@@ -123,9 +123,9 @@ function calculateDifficultyRange(pp: number, stableTopPlayStars: number, diffic
 
     // 1000pp 이상 일반 유저용 난이도 계산
     const offsets = {
-        EASY: -1.0,
-        NORMAL: -0.25,
-        HARD: 0.45
+        EASY: -1.5,
+        NORMAL: -0.75,
+        HARD: 0.25
     };
     const margin = 0.25;
 
@@ -302,12 +302,13 @@ export const osuApi = {
             const searchParams = new URLSearchParams({
                 mode: 'osu',
                 s: 'ranked',
-                sort: 'ranked_date',
-                sort_desc: '1',
+                sort: Math.random() > 0.3 ? 'relevance' : 'popularity',
+
+                sort_desc: Math.random() > 0.5 ? '1' : '0',
                 min_difficulty: difficultyRange.min.toString(),
                 max_difficulty: difficultyRange.max.toString(),
                 min_length: '30',
-                max_length: '300'
+                max_length: '300',
             });
 
             const token = await getToken();
@@ -336,7 +337,8 @@ export const osuApi = {
                             map.mode === 'osu' &&
                             map.difficulty_rating >= difficultyRange.min &&
                             map.difficulty_rating <= difficultyRange.max &&
-                            map.status === 'ranked'
+                            map.status === 'ranked' &&
+                            map.total_length <= 300 
                         )
                         .map((map: any) => ({
                             id: map.id.toString(),

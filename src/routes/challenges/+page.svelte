@@ -76,7 +76,7 @@
             <span class="text-osu-pink">Daily</span> Challenges
           </h1>
           <p class="mt-3 text-lg text-gray-400 max-w-2xl">
-            매�� 새로운 비트맵으로 자신의 실력을 시험해보세요. 난이도별 3개의 도전과제가 기다리고 있습니다.
+            매일 새로운 비트맵으로 자신의 실력을 시험해보세요. 난이도별 3개의 도전과제가 기다리고 있습니다.
           </p>
         </div>
         
