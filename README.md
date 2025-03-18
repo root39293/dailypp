@@ -1,9 +1,9 @@
 <h1 align="center">DailyPP</h1>
 <p align="center">
-	Daily osu! map recommendation web service (Work in Progress)
+	Daily osu! map recommendation web service
 </p>
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/f8fb0208-c39b-4d30-96e6-1c2f15b6118f" alt="DailyPP Landing Page" width="600"/>
+  <img src="https://github.com/user-attachments/assets/f8fb0208-c39b-4d30-96e6-1c2f15b6118f" alt="DailyPP Landing Page"/>
 </div>
 
 <h2 align="left">Key Features</h2>
